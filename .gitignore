@@ -23,9 +23,14 @@ yarn-error.log*
 dist/
 build/
 out/
+release/
 .next/
 .nuxt/
 .vuepress/dist/
+
+# Electron
+dist-ssr
+*.local
 
 # IDE
 .vscode/

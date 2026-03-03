@@ -2,14 +2,44 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import Database from 'better-sqlite3'
 
-const db = new Database(path.join(app.getPath('userData'), 'finance.db'))
+let db: InstanceType<typeof Database>
+
+function initDatabase() {
+  db = new Database(path.join(app.getPath('userData'), 'finance.db'))
+  db.pragma('journal_mode = WAL')
+  db.pragma('foreign_keys = ON')
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+      budget_amount REAL DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      description TEXT,
+      category_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (category_id) REFERENCES categories(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+    CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
+  `)
+}
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.cjs'),
+      preload: path.join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
       contextIsolation: true
     }
@@ -25,26 +55,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Initialize database tables
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL,
-      amount REAL NOT NULL,
-      category TEXT NOT NULL,
-      description TEXT,
-      date TEXT NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      type TEXT NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-  `)
-
+  initDatabase()
   createWindow()
 
   app.on('activate', () => {

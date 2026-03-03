@@ -1,13 +1,22 @@
+import { HashRouter, Routes, Route } from 'react-router-dom'
+import AppLayout from './components/layout/AppLayout'
+import Dashboard from './pages/Dashboard'
+import Transactions from './pages/Transactions'
+import Budget from './pages/Budget'
+import Reports from './pages/Reports'
+
 function App() {
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">PR Finance</h1>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <p className="text-gray-600">Welcome to PR Finance - your personal finance tracker.</p>
-        </div>
-      </div>
-    </div>
+    <HashRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/budget" element={<Budget />} />
+          <Route path="/reports" element={<Reports />} />
+        </Route>
+      </Routes>
+    </HashRouter>
   )
 }
 

@@ -5,14 +5,26 @@ import {
     Wallet,
     BarChart3,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Building2,
+    Tag,
+    FolderTree,
+    Repeat,
+    Bell,
+    Settings
 } from 'lucide-react'
 
 const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+    { to: '/accounts', label: 'Accounts', icon: Building2 },
     { to: '/budget', label: 'Budget', icon: Wallet },
-    { to: '/reports', label: 'Reports', icon: BarChart3 }
+    { to: '/reports', label: 'Reports', icon: BarChart3 },
+    { to: '/categories', label: 'Categories', icon: FolderTree },
+    { to: '/tags', label: 'Tags', icon: Tag },
+    { to: '/recurring', label: 'Recurring', icon: Repeat },
+    { to: '/reminders', label: 'Reminders', icon: Bell },
+    { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
 interface SidebarProps {

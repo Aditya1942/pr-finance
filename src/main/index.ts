@@ -99,9 +99,9 @@ function runMigrations() {
       );
       CREATE INDEX IF NOT EXISTS idx_accounts_type ON accounts(type);
     `)
-    try { db.exec('ALTER TABLE transactions ADD COLUMN account_id INTEGER REFERENCES accounts(id)') } catch (_) {}
-    try { db.exec('ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id)') } catch (_) {}
-    try { db.exec('ALTER TABLE categories ADD COLUMN icon TEXT') } catch (_) {}
+    try { db.exec('ALTER TABLE transactions ADD COLUMN account_id INTEGER REFERENCES accounts(id)') } catch (_) { }
+    try { db.exec('ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id)') } catch (_) { }
+    try { db.exec('ALTER TABLE categories ADD COLUMN icon TEXT') } catch (_) { }
     db.exec(`
       CREATE TABLE IF NOT EXISTS recurring_templates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,9 +138,9 @@ function runMigrations() {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
     `)
-    try { db.exec('ALTER TABLE transactions ADD COLUMN currency TEXT DEFAULT \'GBP\'') } catch (_) {}
-    try { db.exec('ALTER TABLE transactions ADD COLUMN original_amount REAL') } catch (_) {}
-    try { db.exec('ALTER TABLE transactions ADD COLUMN phase_tag TEXT') } catch (_) {}
+    try { db.exec('ALTER TABLE transactions ADD COLUMN currency TEXT DEFAULT \'GBP\'') } catch (_) { }
+    try { db.exec('ALTER TABLE transactions ADD COLUMN original_amount REAL') } catch (_) { }
+    try { db.exec('ALTER TABLE transactions ADD COLUMN phase_tag TEXT') } catch (_) { }
     db.prepare('UPDATE schema_version SET version = 2').run()
   }
 
@@ -899,6 +899,235 @@ function registerIpcHandlers() {
       path: dbPath,
     }
   })
+
+  // ── Import CSV ──
+  ipcMain.handle('db:importCsv', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Import Transactions from CSV',
+      filters: [
+        { name: 'CSV Files', extensions: ['csv'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+      properties: ['openFile'],
+    })
+
+    if (result.canceled || !result.filePaths.length) return { success: false, canceled: true }
+
+    const filePath = result.filePaths[0]
+    const raw = fs.readFileSync(filePath, 'utf-8')
+    const lines = raw.split(/\r?\n/).filter(l => l.trim())
+
+    if (lines.length < 2) return { success: false, error: 'CSV file is empty or has no data rows' }
+
+    // Parse header
+    const headerLine = lines[0]
+    const headers = parseCsvLine(headerLine).map(h => h.trim().toLowerCase())
+
+    // Identify column indices
+    const dateIdx = headers.findIndex(h => h === 'date')
+    const amountIdx = headers.findIndex(h => h === 'amount')
+    const descIdx = headers.findIndex(h => ['description', 'desc', 'memo', 'note', 'notes'].includes(h))
+    const typeIdx = headers.findIndex(h => h === 'type')
+    const categoryIdx = headers.findIndex(h => ['category', 'category_name'].includes(h))
+    const currencyIdx = headers.findIndex(h => h === 'currency')
+    const accountIdx = headers.findIndex(h => ['account', 'account_name'].includes(h))
+    const tagsIdx = headers.findIndex(h => ['tags', 'tag'].includes(h))
+
+    if (dateIdx === -1 || amountIdx === -1) {
+      return { success: false, error: 'CSV must have at least "Date" and "Amount" columns' }
+    }
+
+    const defaultCurrency = (db.prepare('SELECT value FROM preferences WHERE key = ?').get('default_currency') as { value: string } | undefined)?.value ?? 'USD'
+
+    // Cache categories & accounts & tags
+    const categoryCache = new Map<string, number>()
+      ; (db.prepare('SELECT id, name FROM categories').all() as { id: number; name: string }[]).forEach(c => categoryCache.set(c.name.toLowerCase(), c.id))
+
+    const accountCache = new Map<string, number>()
+      ; (db.prepare('SELECT id, name FROM accounts').all() as { id: number; name: string }[]).forEach(a => accountCache.set(a.name.toLowerCase(), a.id))
+
+    const tagCache = new Map<string, number>()
+      ; (db.prepare('SELECT id, name FROM tags').all() as { id: number; name: string }[]).forEach(t => tagCache.set(t.name.toLowerCase(), t.id))
+
+    const insertCategory = db.prepare('INSERT INTO categories (name, type, color) VALUES (?, ?, ?)')
+    const insertAccount = db.prepare("INSERT INTO accounts (name, type, initial_balance) VALUES (?, 'bank', 0)")
+    const insertTag = db.prepare("INSERT INTO tags (name, color) VALUES (?, '#6366f1')")
+    const insertTx = db.prepare(`
+      INSERT INTO transactions (date, amount, description, category_id, type, account_id, currency)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
+    const insertTxTag = db.prepare('INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (?, ?)')
+
+    let imported = 0
+    let skipped = 0
+    const errors: string[] = []
+
+    const doImport = db.transaction(() => {
+      for (let i = 1; i < lines.length; i++) {
+        try {
+          const cols = parseCsvLine(lines[i])
+          const dateVal = cols[dateIdx]?.trim()
+          const amountVal = parseFloat(cols[amountIdx]?.trim())
+
+          if (!dateVal || isNaN(amountVal)) {
+            skipped++
+            errors.push(`Row ${i + 1}: invalid date or amount`)
+            continue
+          }
+
+          const description = descIdx >= 0 ? (cols[descIdx]?.trim() || '') : ''
+          let type = typeIdx >= 0 ? (cols[typeIdx]?.trim().toLowerCase() || '') : ''
+          if (!['income', 'expense'].includes(type)) {
+            type = amountVal >= 0 ? 'income' : 'expense'
+          }
+
+          const amount = Math.abs(amountVal)
+          const currency = currencyIdx >= 0 ? (cols[currencyIdx]?.trim() || defaultCurrency) : defaultCurrency
+
+          // Resolve category
+          const categoryName = categoryIdx >= 0 ? (cols[categoryIdx]?.trim() || '') : ''
+          let categoryId: number
+          if (categoryName && categoryCache.has(categoryName.toLowerCase())) {
+            categoryId = categoryCache.get(categoryName.toLowerCase())!
+          } else if (categoryName) {
+            const color = type === 'income' ? '#22c55e' : '#6366f1'
+            const res = insertCategory.run(categoryName, type, color)
+            categoryId = Number(res.lastInsertRowid)
+            categoryCache.set(categoryName.toLowerCase(), categoryId)
+          } else {
+            // Fallback to "Other Income" or "Other Expense"
+            const fallback = type === 'income' ? 'other income' : 'other expense'
+            if (categoryCache.has(fallback)) {
+              categoryId = categoryCache.get(fallback)!
+            } else {
+              const res = insertCategory.run(type === 'income' ? 'Other Income' : 'Other Expense', type, '#64748b')
+              categoryId = Number(res.lastInsertRowid)
+              categoryCache.set(fallback, categoryId)
+            }
+          }
+
+          // Resolve account
+          let accountId: number | null = null
+          if (accountIdx >= 0) {
+            const accountName = cols[accountIdx]?.trim()
+            if (accountName) {
+              if (accountCache.has(accountName.toLowerCase())) {
+                accountId = accountCache.get(accountName.toLowerCase())!
+              } else {
+                const res = insertAccount.run(accountName)
+                accountId = Number(res.lastInsertRowid)
+                accountCache.set(accountName.toLowerCase(), accountId)
+              }
+            }
+          }
+
+          const txRes = insertTx.run(dateVal, amount, description, categoryId, type, accountId, currency)
+          const txId = Number(txRes.lastInsertRowid)
+
+          // Resolve tags
+          if (tagsIdx >= 0) {
+            const tagsStr = cols[tagsIdx]?.trim()
+            if (tagsStr) {
+              const tagNames = tagsStr.split(',').map(t => t.trim()).filter(Boolean)
+              for (const tagName of tagNames) {
+                let tagId: number
+                if (tagCache.has(tagName.toLowerCase())) {
+                  tagId = tagCache.get(tagName.toLowerCase())!
+                } else {
+                  const res = insertTag.run(tagName)
+                  tagId = Number(res.lastInsertRowid)
+                  tagCache.set(tagName.toLowerCase(), tagId)
+                }
+                insertTxTag.run(txId, tagId)
+              }
+            }
+          }
+
+          imported++
+        } catch (err: any) {
+          skipped++
+          errors.push(`Row ${i + 1}: ${err.message}`)
+        }
+      }
+    })
+
+    doImport()
+
+    return { success: true, imported, skipped, errors: errors.slice(0, 10) }
+  })
+
+  // ── Restore Database from .db file ──
+  ipcMain.handle('db:restoreDatabase', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Restore Database from Backup',
+      filters: [
+        { name: 'SQLite Database', extensions: ['db', 'sqlite', 'sqlite3'] },
+      ],
+      properties: ['openFile'],
+    })
+
+    if (result.canceled || !result.filePaths.length) return { success: false, canceled: true }
+
+    const sourcePath = result.filePaths[0]
+    const dbPath = path.join(app.getPath('userData'), 'finance.db')
+
+    try {
+      // Validate that the source is a valid SQLite file
+      const testDb = new Database(sourcePath, { readonly: true })
+      testDb.prepare('SELECT 1').get()
+      testDb.close()
+
+      // Close current db, copy, re-open
+      db.close()
+      fs.copyFileSync(sourcePath, dbPath)
+      db = new Database(dbPath)
+      db.pragma('journal_mode = WAL')
+      db.pragma('foreign_keys = ON')
+
+      return { success: true }
+    } catch (err: any) {
+      // If db was closed and copy failed, re-open the original
+      try {
+        db = new Database(dbPath)
+        db.pragma('journal_mode = WAL')
+        db.pragma('foreign_keys = ON')
+      } catch (_) { }
+      return { success: false, error: err.message || 'Invalid database file' }
+    }
+  })
+}
+
+// Helper: parse a single CSV line respecting quoted fields
+function parseCsvLine(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        current += ch
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true
+      } else if (ch === ',') {
+        result.push(current)
+        current = ''
+      } else {
+        current += ch
+      }
+    }
+  }
+  result.push(current)
+  return result
 }
 
 function createWindow() {

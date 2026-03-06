@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Save, Download, Database, Trash2, HardDrive, FileSpreadsheet, AlertTriangle, CheckCircle, Settings2, Table2, Shield, Search, X, ChevronDown, Check } from 'lucide-react'
+import { Save, Download, Database, Trash2, HardDrive, FileSpreadsheet, AlertTriangle, CheckCircle, Settings2, Table2, Shield, Search, X, ChevronDown, Check, Upload, FileUp } from 'lucide-react'
 import { CURRENCY_CODES } from '../constants/currencies'
 
 type Tab = 'general' | 'database'
@@ -153,6 +153,47 @@ function Settings() {
         } catch (err) {
             console.error(err)
             setToast({ message: 'Failed to clear database', type: 'error' })
+        } finally {
+            setLoading(null)
+        }
+    }
+
+    async function handleImportCsv() {
+        try {
+            setLoading('importCsv')
+            const result = await window.api.importCsv()
+            if (result.canceled) {
+                setToast({ message: 'Import cancelled', type: 'info' })
+            } else if (result.success) {
+                const msg = `Imported ${result.imported} transaction${result.imported !== 1 ? 's' : ''}${result.skipped ? ` (${result.skipped} skipped)` : ''}`
+                setToast({ message: msg, type: 'success' })
+                loadDbStats()
+            } else {
+                setToast({ message: result.error || 'Import failed', type: 'error' })
+            }
+        } catch (err) {
+            console.error(err)
+            setToast({ message: 'Failed to import CSV', type: 'error' })
+        } finally {
+            setLoading(null)
+        }
+    }
+
+    async function handleRestoreDatabase() {
+        try {
+            setLoading('restore')
+            const result = await window.api.restoreDatabase()
+            if (result.canceled) {
+                setToast({ message: 'Restore cancelled', type: 'info' })
+            } else if (result.success) {
+                setToast({ message: 'Database restored successfully! Reload to see changes.', type: 'success' })
+                loadDbStats()
+            } else {
+                setToast({ message: result.error || 'Restore failed', type: 'error' })
+            }
+        } catch (err) {
+            console.error(err)
+            setToast({ message: 'Failed to restore database', type: 'error' })
         } finally {
             setLoading(null)
         }
@@ -494,6 +535,81 @@ function Settings() {
                                 >
                                     <Download size={14} />
                                     {loading === 'csv' ? 'Exporting...' : 'Export .csv'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Import */}
+                    <div className="card">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                            <div style={{
+                                width: 36, height: 36, borderRadius: 10,
+                                background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                                <Upload size={18} color="#fff" />
+                            </div>
+                            <div>
+                                <h3 className="chart-card__title" style={{ margin: 0 }}>Import</h3>
+                                <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: 0 }}>
+                                    Bring data into your database
+                                </p>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {/* Import CSV */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '14px 16px',
+                                background: 'var(--color-bg-tertiary)',
+                                borderRadius: 10,
+                                flexWrap: 'wrap', gap: 12,
+                            }}>
+                                <div>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                        Import Transactions from CSV
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                                        CSV with columns: Date, Amount, Description, Type, Category, Account, Tags
+                                    </div>
+                                </div>
+                                <button
+                                    className="btn btn--ghost"
+                                    onClick={handleImportCsv}
+                                    disabled={loading === 'importCsv'}
+                                    style={{ flexShrink: 0 }}
+                                >
+                                    <FileUp size={14} />
+                                    {loading === 'importCsv' ? 'Importing...' : 'Import .csv'}
+                                </button>
+                            </div>
+
+                            {/* Restore Database */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '14px 16px',
+                                background: 'var(--color-bg-tertiary)',
+                                borderRadius: 10,
+                                flexWrap: 'wrap', gap: 12,
+                            }}>
+                                <div>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                        Restore from Backup
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                                        Replace current database with a .db backup file
+                                    </div>
+                                </div>
+                                <button
+                                    className="btn btn--ghost"
+                                    onClick={handleRestoreDatabase}
+                                    disabled={loading === 'restore'}
+                                    style={{ flexShrink: 0 }}
+                                >
+                                    <HardDrive size={14} />
+                                    {loading === 'restore' ? 'Restoring...' : 'Restore .db'}
                                 </button>
                             </div>
                         </div>

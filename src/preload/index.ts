@@ -101,6 +101,8 @@ contextBridge.exposeInMainWorld('api', {
   clearDatabase: () => ipcRenderer.invoke('db:clearDatabase'),
   exportToExcel: () => ipcRenderer.invoke('db:exportToExcel'),
   getDatabaseStats: () => ipcRenderer.invoke('db:getDatabaseStats'),
+  importCsv: () => ipcRenderer.invoke('db:importCsv'),
+  restoreDatabase: () => ipcRenderer.invoke('db:restoreDatabase'),
 
   // Platform
   platform: process.platform,

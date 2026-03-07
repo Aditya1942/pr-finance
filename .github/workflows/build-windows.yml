@@ -1,0 +1,73 @@
+name: Build Windows
+
+on:
+  # Run on push to main (artifact) or version tags (GitHub Release)
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack (Yarn)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build app (electron-vite + electron-builder NSIS)
+        run: yarn build:win:exe
+        env:
+          # Disable code signing (no certificate configured)
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload Windows installer (.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-finance-windows-x64
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Windows zip (portable, no install needed)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-finance-windows-x64-zip
+          path: release/*.zip
+          if-no-files-found: warn
+          retention-days: 30
+
+  # Attach artifacts to a GitHub Release when a version tag is pushed (e.g. v1.0.0)
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-finance-windows-x64
+          path: release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

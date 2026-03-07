@@ -9,9 +9,44 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "build:win": "electron-vite build && electron-builder --win --x64",
+    "build:win": "electron-vite build && electron-builder --win dir --x64",
+    "build:win:zip": "electron-vite build && electron-builder --win zip --x64",
+    "build:win:exe": "electron-vite build && electron-builder --win nsis --x64",
     "build:mac": "electron-vite build && electron-builder --mac",
     "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.pr-finance.app",
+    "productName": "pr-finance",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "${productName}-Setup-${version}-x64.exe"
+    },
+    "files": [
+      "out/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    }
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",

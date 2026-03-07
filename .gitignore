@@ -1,32 +1,20 @@
 # Dependencies
 node_modules/
-package-lock.json
-bun.lock
-yarn.lock
-pnpm-lock.yaml
 
 # Environment variables
 .env
 .env.local
 .env.production
 .env.development
-.env.test
 
 # Logs
-logs/
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Build output
 dist/
-build/
 out/
 release/
-.next/
-.nuxt/
-.vuepress/dist/
 
 # Electron
 dist-ssr
@@ -45,7 +33,6 @@ Thumbs.db
 
 # Testing
 coverage/
-.nyc_output/
 
 # Temporary files
 tmp/

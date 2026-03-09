@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Edit3, Trash2, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { getCurrencySymbol } from '../constants/currencies'
 import type { Transaction } from '../types'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -14,6 +15,7 @@ function TransactionDetail() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const [tx, setTx] = useState<Transaction | null>(null)
+    const [defaultCurrency, setDefaultCurrency] = useState('USD')
     const [loading, setLoading] = useState(true)
     const [deleteConfirm, setDeleteConfirm] = useState(false)
 
@@ -24,8 +26,12 @@ function TransactionDetail() {
     async function load(txId: number) {
         setLoading(true)
         try {
-            const data = await window.api.getTransaction(txId)
+            const [data, currency] = await Promise.all([
+                window.api.getTransaction(txId),
+                window.api.getDefaultCurrency().then(c => c || 'USD')
+            ])
             setTx(data)
+            setDefaultCurrency(currency)
         } catch (err) {
             console.error(err)
             setTx(null)
@@ -108,7 +114,7 @@ function TransactionDetail() {
                         </div>
                     </div>
                     <div className={tx.type === 'income' ? 'text-income' : 'text-expense'} style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                        {tx.type === 'income' ? '+' : '-'}₹{Number(tx.amount).toLocaleString('en-IN')}
+                        {tx.type === 'income' ? '+' : '-'}{getCurrencySymbol(defaultCurrency)} {Number(tx.amount).toLocaleString('en-IN')}
                     </div>
                 </div>
 

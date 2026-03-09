@@ -3,9 +3,10 @@ import { useEffect, useRef } from 'react'
 interface DonutChartProps {
     data: { name: string; value: number; color: string }[]
     size?: number
+    currencySymbol?: string
 }
 
-export default function DonutChart({ data, size = 200 }: DonutChartProps) {
+export default function DonutChart({ data, size = 200, currencySymbol = '' }: DonutChartProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const rafId = useRef<number>()
 
@@ -82,7 +83,7 @@ export default function DonutChart({ data, size = 200 }: DonutChartProps) {
                 ctx.font = '600 12px Outfit, sans-serif'
                 ctx.fillText('TOTAL', cx, cy - 10)
                 ctx.font = '700 18px JetBrains Mono, monospace'
-                ctx.fillText(formatShort(total), cx, cy + 12)
+                ctx.fillText(formatShort(total, currencySymbol), cx, cy + 12)
                 ctx.globalAlpha = 1
             }
 
@@ -93,7 +94,7 @@ export default function DonutChart({ data, size = 200 }: DonutChartProps) {
 
         rafId.current = requestAnimationFrame(draw)
         return () => { if (rafId.current) cancelAnimationFrame(rafId.current) }
-    }, [data, size])
+    }, [data, size, currencySymbol])
 
     return (
         <canvas
@@ -103,8 +104,9 @@ export default function DonutChart({ data, size = 200 }: DonutChartProps) {
     )
 }
 
-function formatShort(n: number): string {
-    if (n >= 100000) return '₹' + (n / 100000).toFixed(1) + 'L'
-    if (n >= 1000) return '₹' + (n / 1000).toFixed(0) + 'K'
-    return '₹' + n.toFixed(0)
+function formatShort(n: number, symbol: string): string {
+    const s = symbol || ''
+    if (n >= 100000) return s + (n / 100000).toFixed(1) + 'L'
+    if (n >= 1000) return s + (n / 1000).toFixed(0) + 'K'
+    return s + n.toFixed(0)
 }

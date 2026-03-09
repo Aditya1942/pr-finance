@@ -10,6 +10,7 @@ import Categories from './pages/Categories'
 import Tags from './pages/Tags'
 import Recurring from './pages/Recurring'
 import Reminders from './pages/Reminders'
+import SavingsGoals from './pages/SavingsGoals'
 import Settings from './pages/Settings'
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
           <Route path="/tags" element={<Tags />} />
           <Route path="/recurring" element={<Recurring />} />
           <Route path="/reminders" element={<Reminders />} />
+          <Route path="/savings-goals" element={<SavingsGoals />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>

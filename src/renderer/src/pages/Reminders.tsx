@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Plus, X, Trash2, Check } from 'lucide-react'
+import { getCurrencySymbol } from '../constants/currencies'
 import type { Reminder as ReminderType } from '../types'
 
 function Reminders() {
+    const [defaultCurrency, setDefaultCurrency] = useState('USD')
     const [reminders, setReminders] = useState<ReminderType[]>([])
     const [loading, setLoading] = useState(true)
     const [modalOpen, setModalOpen] = useState(false)
@@ -20,8 +22,12 @@ function Reminders() {
     async function load() {
         setLoading(true)
         try {
-            const data = await window.api.getReminders({ includePaid: showPaid })
+            const [data, currency] = await Promise.all([
+                window.api.getReminders({ includePaid: showPaid }),
+                window.api.getDefaultCurrency().then(c => c || 'USD'),
+            ])
             setReminders(data)
+            setDefaultCurrency(currency)
             const today = new Date().toISOString().split('T')[0]
             const overdueCount = data.filter((r: ReminderType) => !r.paid_at && r.due_date < today).length
             if (overdueCount > 0) {
@@ -113,7 +119,7 @@ function Reminders() {
                             <li key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--color-border)' }}>
                                 <div>
                                     <span style={{ fontWeight: 700 }}>{r.title}</span>
-                                    {r.amount != null && <span style={{ marginLeft: 12, fontFamily: 'var(--font-mono)' }}>₹{Number(r.amount).toLocaleString('en-IN')}</span>}
+                                    {r.amount != null && <span style={{ marginLeft: 12, fontFamily: 'var(--font-mono)' }}>{getCurrencySymbol(defaultCurrency)}{Number(r.amount).toLocaleString('en-IN')}</span>}
                                     <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--color-text-muted)' }}>Due {r.due_date}</span>
                                 </div>
                                 <div style={{ display: 'flex', gap: 4 }}>
@@ -149,7 +155,7 @@ function Reminders() {
                                     <td style={{ fontWeight: 600 }}>{r.title}</td>
                                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{r.due_date}</td>
                                     <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                                        {r.amount != null ? `₹${Number(r.amount).toLocaleString('en-IN')}` : '—'}
+                                        {r.amount != null ? `${getCurrencySymbol(defaultCurrency)}${Number(r.amount).toLocaleString('en-IN')}` : '—'}
                                     </td>
                                     <td>
                                         {r.paid_at ? (

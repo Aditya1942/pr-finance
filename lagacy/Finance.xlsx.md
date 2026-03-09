@@ -6,12 +6,14 @@ Overview of the legacy Excel workbook: sheets, data layout, and how they relate.
 
 ## Workbook at a glance
 
-| Sheet    | Purpose                          | Rows  |
-|----------|----------------------------------|-------|
-| **Sheet1** | Main ledger: P&L + Balance Sheet | 139   |
-| **Data**   | Summaries, pivots, currency      | 131   |
-| **Analyse**| Analysis (charts/formulas)       | 40    |
-| **Sheet2**| Pre-UK / India phase (INR)       | 27    |
+
+| Sheet       | Purpose                          | Rows |
+| ----------- | -------------------------------- | ---- |
+| **Sheet1**  | Main ledger: P&L + Balance Sheet | 139  |
+| **Data**    | Summaries, pivots, currency      | 131  |
+| **Analyse** | Analysis (charts/formulas)       | 40   |
+| **Sheet2**  | Pre-UK / India phase (INR)       | 27   |
+
 
 **Currency note:** Sheet1 uses **GBP** with a note: *GBP 1 = 107.59 INR (05 Dec)*. Sheet2 is in **INR**.
 
@@ -49,14 +51,16 @@ Single sheet with two main blocks: **Profit & Loss (Dr/Cr)** on the left and **B
 
 ### 2.1 Bank & Cash (current snapshot)
 
-| Account         | Amount (GBP) |
-|----------------|--------------|
-| Llyods         | 1,106.21     |
-| Father's Account | 335.40    |
-| Sahil India    | 105.13       |
-| Dream (savings)| 3,004.21     |
-| Cash           | 0            |
-| **Total**      | **4,550.95** |
+
+| Account          | Amount (GBP) |
+| ---------------- | ------------ |
+| Llyods           | 1,106.21     |
+| Father's Account | 335.40       |
+| Sahil India      | 105.13       |
+| Dream (savings)  | 3,004.21     |
+| Cash             | 0            |
+| **Total**        | **4,550.95** |
+
 
 ### 2.2 Income vs expense (by year)
 
@@ -91,36 +95,40 @@ Pre-UK income and expenses in **INR**.
 
 ### 4.1 Income (INR)
 
-| # | Particular                              | Amount (INR) |
-|---|----------------------------------------|--------------|
-| 1 | Loan Disbursed (incl. INR 16,015 insurance) | 17,83,759 |
-| 2 | Money Taken From Hitesh bhai            | 6,00,000     |
-|   | **Total**                               | **23,83,759**|
-|   | RTGS                                    | 11,00,000    |
-|   | **Total amount should have**            | **11,37,389**|
+
+| #   | Particular                                  | Amount (INR)  |
+| --- | ------------------------------------------- | ------------- |
+| 1   | Loan Disbursed (incl. INR 16,015 insurance) | 17,83,759     |
+| 2   | Money Taken From Hitesh bhai                | 6,00,000      |
+|     | **Total**                                   | **23,83,759** |
+|     | RTGS                                        | 11,00,000     |
+|     | **Total amount should have**                | **11,37,389** |
+
 
 ### 4.2 Expense (INR)
 
-| # | Date / Period   | Particular                     | Amount (INR) |
-|---|-----------------|--------------------------------|--------------|
-|   |                 | Insurance HDFC Loan            | 16,015       |
-| 1 | Oct 2022        | IELTS Classes Fees             | 15,000       |
-| 2 | Jan 2023        | IELTS Exam Fees                 | 15,000       |
-| 3 | Jun 2023        | SAP paid to Parth bhai contact  | 3,000        |
-| 4 | Sep 2023        | Loan Processing Fee             | 21,240       |
-| 4 | Sep 2023        | Deposit to SHU                 | 3,17,714     |
-| 5 | Sep 2023        | Medical test for UK             | 2,000        |
-| 6 | Nov 2023        | Minimum enrollment fee to SHU   | 5,18,579     |
-| 7 | Nov 2023        | IHS Health insurance for UK Visa| 99,700       |
-| 8 | Nov 2023        | Visa file charge                | 51,972       |
-| 9 | Dec 2023        | Flight Ticket                   | 46,686       |
-|10 | 01–11 Dec       | Shopping                        | 29,940       |
-|11 | Dec 2023        | Loan EMI (3 months)             | 6,000        |
-|12 |                 | Other Expense                   | 7,224        |
-|13 | Feb 2024        | Mataji a Pelo pagar             | 70,000       |
-|   |                 | Taken for home expense         | 10,000       |
-|   |                 | EMI Assessment                  | 16,300       |
-|   |                 | **Total**                       | **12,46,370**|
+
+| #   | Date / Period | Particular                       | Amount (INR)  |
+| --- | ------------- | -------------------------------- | ------------- |
+|     |               | Insurance HDFC Loan              | 16,015        |
+| 1   | Oct 2022      | IELTS Classes Fees               | 15,000        |
+| 2   | Jan 2023      | IELTS Exam Fees                  | 15,000        |
+| 3   | Jun 2023      | SAP paid to Parth bhai contact   | 3,000         |
+| 4   | Sep 2023      | Loan Processing Fee              | 21,240        |
+| 4   | Sep 2023      | Deposit to SHU                   | 3,17,714      |
+| 5   | Sep 2023      | Medical test for UK              | 2,000         |
+| 6   | Nov 2023      | Minimum enrollment fee to SHU    | 5,18,579      |
+| 7   | Nov 2023      | IHS Health insurance for UK Visa | 99,700        |
+| 8   | Nov 2023      | Visa file charge                 | 51,972        |
+| 9   | Dec 2023      | Flight Ticket                    | 46,686        |
+| 10  | 01–11 Dec     | Shopping                         | 29,940        |
+| 11  | Dec 2023      | Loan EMI (3 months)              | 6,000         |
+| 12  |               | Other Expense                    | 7,224         |
+| 13  | Feb 2024      | Mataji a Pelo pagar              | 70,000        |
+|     |               | Taken for home expense           | 10,000        |
+|     |               | EMI Assessment                   | 16,300        |
+|     |               | **Total**                        | **12,46,370** |
+
 
 ### 4.3 Summary (Sheet2)
 
@@ -134,31 +142,25 @@ Pre-UK income and expenses in **INR**.
 
 If you mirror this in an app or DB, these are natural modules:
 
-1. **Transactions (ledger)**  
-   - From Sheet1: date, particular, amount, side (Dr/Cr), category (inferred from “Particular” / “Particular2”).  
-   - Fields: date, description, amount, type (income/expense), category.
-
-2. **Accounts (balance sheet)**  
-   - From Sheet1 right side: Liabilities and Assets with names and amounts.  
-   - Fields: name, type (liability/asset), amount, currency.
-
-3. **Bank & cash positions**  
-   - From Data: list of accounts and current balances (e.g. Llyods, Father’s Account, Sahil India, Dream, Cash).  
-   - Fields: account name, balance, currency.
-
-4. **Income vs expense summary**  
-   - From Data: income and expense by month/year and by category (e.g. Living Expense, Suji Wages).  
-   - Fields: period (month/year), category/source, amount, type (income/expense).
-
-5. **Pre-UK / India phase**  
-   - From Sheet2: income and expense in INR (loan, Hitesh bhai, SHU, visa, flight, etc.).  
-   - Fields: date/period, particular, amount (INR), type (income/expense).
-
-6. **Currency**  
-   - Single reference rate (e.g. GBP/INR) and optionally “as of” date; from Sheet1 note and Data “For Live Currency” section.
-
-7. **Analyse**  
-   - Placeholder for charts/analysis that live in Excel; in an app this would be “Reports / Analysis” built from the same transaction and summary data.
+1. **Transactions (ledger)**
+  - From Sheet1: date, particular, amount, side (Dr/Cr), category (inferred from “Particular” / “Particular2”).  
+  - Fields: date, description, amount, type (income/expense), category.
+2. **Accounts (balance sheet)**
+  - From Sheet1 right side: Liabilities and Assets with names and amounts.  
+  - Fields: name, type (liability/asset), amount, currency.
+3. **Bank & cash positions**
+  - From Data: list of accounts and current balances (e.g. Llyods, Father’s Account, Sahil India, Dream, Cash).  
+  - Fields: account name, balance, currency.
+4. **Income vs expense summary**
+  - From Data: income and expense by month/year and by category (e.g. Living Expense, Suji Wages).  
+  - Fields: period (month/year), category/source, amount, type (income/expense).
+5. **Pre-UK / India phase**
+  - From Sheet2: income and expense in INR (loan, Hitesh bhai, SHU, visa, flight, etc.).  
+  - Fields: date/period, particular, amount (INR), type (income/expense).
+6. **Currency**
+  - Single reference rate (e.g. GBP/INR) and optionally “as of” date; from Sheet1 note and Data “For Live Currency” section.
+7. **Analyse**
+  - Placeholder for charts/analysis that live in Excel; in an app this would be “Reports / Analysis” built from the same transaction and summary data.
 
 ---
 
@@ -169,3 +171,4 @@ If you mirror this in an app or DB, these are natural modules:
 - **Summaries:** Data — bank list, income/expense by period, Living Expense and Suji Wages pivots, GBP/INR rate.  
 - **Pre-UK (INR):** Sheet2 — income 23,83,759 + RTGS 11,00,000; expenses total 12,46,370; amount after debt 5,37,389; S.B.I 19,83,689.  
 - **Analyse:** Structure present; content is in charts/formulas, not in exported values.
+

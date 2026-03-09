@@ -1,28 +1,65 @@
 import { useState, useEffect } from 'react'
-import { Download, Printer } from 'lucide-react'
+import { Download, Printer, TrendingUp, FileSpreadsheet } from 'lucide-react'
 import BarChart from '../components/charts/BarChart'
-import type { ReportData } from '../types'
+import { getCurrencySymbol } from '../constants/currencies'
+import type { ReportData, BalanceSheetData, PlReport } from '../types'
 
 type Period = 'monthly' | 'quarterly' | 'yearly'
+type ReportTab = 'income-expense' | 'balance-sheet'
 
 function Reports() {
+    const [defaultCurrency, setDefaultCurrency] = useState('USD')
+    const [reportTab, setReportTab] = useState<ReportTab>('income-expense')
     const [period, setPeriod] = useState<Period>('monthly')
+    const [dateFrom, setDateFrom] = useState<string>('')
+    const [dateTo, setDateTo] = useState<string>('')
     const [data, setData] = useState<ReportData | null>(null)
+    const [balanceSheet, setBalanceSheet] = useState<BalanceSheetData | null>(null)
+    const [plReport, setPlReport] = useState<PlReport | null>(null)
     const [loading, setLoading] = useState(true)
+    const [balanceSheetLoading, setBalanceSheetLoading] = useState(false)
 
     useEffect(() => {
-        loadReport()
-    }, [period])
+        window.api.getDefaultCurrency().then(c => setDefaultCurrency(c || 'USD'))
+    }, [])
+
+    useEffect(() => {
+        if (reportTab === 'income-expense') loadReport()
+    }, [reportTab, period, dateFrom, dateTo])
+
+    useEffect(() => {
+        if (reportTab === 'balance-sheet') loadBalanceSheet()
+    }, [reportTab])
 
     async function loadReport() {
         setLoading(true)
         try {
-            const report = await window.api.getReportData(period)
+            const options =
+                dateFrom || dateTo
+                    ? { startDate: dateFrom || undefined, endDate: dateTo || undefined }
+                    : undefined
+            const report = await window.api.getReportData(period, options as any)
             setData(report)
         } catch (err) {
             console.error(err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    async function loadBalanceSheet() {
+        setBalanceSheetLoading(true)
+        try {
+            const [sheet, pl] = await Promise.all([
+                window.api.getBalanceSheet(),
+                window.api.getPlReport(),
+            ])
+            setBalanceSheet(sheet)
+            setPlReport(pl)
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setBalanceSheetLoading(false)
         }
     }
 
@@ -59,11 +96,29 @@ function Reports() {
 
     return (
         <div className="page">
-            {/* Period Selector + Export */}
+            {/* Tabs + Period Selector + Export */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
-                    Financial Reports
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
+                        Financial Reports
+                    </h2>
+                    <div className="period-selector" style={{ margin: 0 }}>
+                        <button
+                            className={`period-selector__btn ${reportTab === 'income-expense' ? 'period-selector__btn--active' : ''}`}
+                            onClick={() => setReportTab('income-expense')}
+                        >
+                            <TrendingUp size={14} style={{ marginRight: 4 }} />
+                            Income / Expense
+                        </button>
+                        <button
+                            className={`period-selector__btn ${reportTab === 'balance-sheet' ? 'period-selector__btn--active' : ''}`}
+                            onClick={() => setReportTab('balance-sheet')}
+                        >
+                            <FileSpreadsheet size={14} style={{ marginRight: 4 }} />
+                            Balance Sheet
+                        </button>
+                    </div>
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button
                         className="btn btn--ghost"
@@ -85,25 +140,53 @@ function Reports() {
                         <Printer size={14} />
                         Print
                     </button>
-                    <div className="period-selector">
-                        {(['monthly', 'quarterly', 'yearly'] as Period[]).map(p => (
-                            <button
-                                key={p}
-                                className={`period-selector__btn ${period === p ? 'period-selector__btn--active' : ''}`}
-                                onClick={() => setPeriod(p)}
-                            >
-                                {p.charAt(0).toUpperCase() + p.slice(1)}
-                            </button>
-                        ))}
-                    </div>
+                    {reportTab === 'income-expense' && (
+                        <>
+                            <div className="period-selector" style={{ margin: 0 }}>
+                                {(['monthly', 'quarterly', 'yearly'] as Period[]).map(p => (
+                                    <button
+                                        key={p}
+                                        className={`period-selector__btn ${period === p ? 'period-selector__btn--active' : ''}`}
+                                        onClick={() => setPeriod(p)}
+                                    >
+                                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <label style={{ fontSize: 12, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>From</label>
+                                <input
+                                    type="date"
+                                    className="form-input"
+                                    value={dateFrom}
+                                    onChange={e => setDateFrom(e.target.value)}
+                                    style={{ width: 140 }}
+                                />
+                                <label style={{ fontSize: 12, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>To</label>
+                                <input
+                                    type="date"
+                                    className="form-input"
+                                    value={dateTo}
+                                    onChange={e => setDateTo(e.target.value)}
+                                    style={{ width: 140 }}
+                                />
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
-            {loading ? (
+            {reportTab === 'balance-sheet' ? (
+                balanceSheetLoading ? (
+                    <div className="card" style={{ minHeight: 300 }} />
+                ) : (
+                    <BalanceSheetView balanceSheet={balanceSheet} plReport={plReport} currencySymbol={getCurrencySymbol(defaultCurrency)} />
+                )
+            ) : loading ? (
                 <div className="card" style={{ minHeight: 300 }} />
             ) : (
-                <div className="page__sections">
-                    {/* Chart */}
+                <div className="page__sections" data-tab="income-expense">
+                    {/* Income vs Expenses (combined) */}
                     <div className="chart-card">
                         <div className="chart-card__header">
                             <div>
@@ -112,7 +195,52 @@ function Reports() {
                             </div>
                         </div>
                         {chartData.length > 0 ? (
-                            <BarChart data={chartData} height={280} />
+                            <BarChart data={chartData} height={280} currencySymbol={getCurrencySymbol(defaultCurrency)} />
+                        ) : (
+                            <div className="card__empty">No data available for this period</div>
+                        )}
+                    </div>
+
+                    {/* Income only */}
+                    <div className="chart-card">
+                        <div className="chart-card__header">
+                            <div>
+                                <h3 className="chart-card__title">Income</h3>
+                                <p className="chart-card__subtitle">{period.charAt(0).toUpperCase() + period.slice(1)} income</p>
+                            </div>
+                        </div>
+                        {chartData.length > 0 ? (
+                            <BarChart data={chartData} height={280} variant="income" currencySymbol={getCurrencySymbol(defaultCurrency)} />
+                        ) : (
+                            <div className="card__empty">No data available for this period</div>
+                        )}
+                    </div>
+
+                    {/* Expenses only */}
+                    <div className="chart-card">
+                        <div className="chart-card__header">
+                            <div>
+                                <h3 className="chart-card__title">Expenses</h3>
+                                <p className="chart-card__subtitle">{period.charAt(0).toUpperCase() + period.slice(1)} expenses</p>
+                            </div>
+                        </div>
+                        {chartData.length > 0 ? (
+                            <BarChart data={chartData} height={280} variant="expense" currencySymbol={getCurrencySymbol(defaultCurrency)} />
+                        ) : (
+                            <div className="card__empty">No data available for this period</div>
+                        )}
+                    </div>
+
+                    {/* Savings by period */}
+                    <div className="chart-card">
+                        <div className="chart-card__header">
+                            <div>
+                                <h3 className="chart-card__title">Savings</h3>
+                                <p className="chart-card__subtitle">{period.charAt(0).toUpperCase() + period.slice(1)} savings (income − expense)</p>
+                            </div>
+                        </div>
+                        {chartData.length > 0 ? (
+                            <BarChart data={chartData} height={280} variant="savings" currencySymbol={getCurrencySymbol(defaultCurrency)} />
                         ) : (
                             <div className="card__empty">No data available for this period</div>
                         )}
@@ -145,12 +273,12 @@ function Reports() {
                                                 </td>
                                                 <td style={{ textAlign: 'right' }}>
                                                     <span className="text-mono text-income" style={{ fontWeight: 600 }}>
-                                                        ₹{Number(row.income).toLocaleString('en-IN')}
+                                                        {getCurrencySymbol(defaultCurrency)}{Number(row.income).toLocaleString('en-IN')}
                                                     </span>
                                                 </td>
                                                 <td style={{ textAlign: 'right' }}>
                                                     <span className="text-mono text-expense" style={{ fontWeight: 600 }}>
-                                                        ₹{Number(row.expense).toLocaleString('en-IN')}
+                                                        {getCurrencySymbol(defaultCurrency)}{Number(row.expense).toLocaleString('en-IN')}
                                                     </span>
                                                 </td>
                                                 <td style={{ textAlign: 'right' }}>
@@ -158,7 +286,7 @@ function Reports() {
                                                         className="text-mono font-bold"
                                                         style={{ color: savings >= 0 ? '#22c55e' : '#ef4444' }}
                                                     >
-                                                        ₹{Number(savings).toLocaleString('en-IN')}
+                                                        {getCurrencySymbol(defaultCurrency)}{Number(savings).toLocaleString('en-IN')}
                                                     </span>
                                                 </td>
                                                 <td style={{ textAlign: 'right' }}>
@@ -221,7 +349,7 @@ function Reports() {
                                                     return (
                                                         <td key={s.period} style={{ textAlign: 'right' }}>
                                                             <span className="text-mono text-income" style={{ fontSize: 13, fontWeight: val > 0 ? 600 : 400 }}>
-                                                                {val > 0 ? `₹${Number(val).toLocaleString('en-IN')}` : '—'}
+                                                                {val > 0 ? `${getCurrencySymbol(defaultCurrency)}${Number(val).toLocaleString('en-IN')}` : '—'}
                                                             </span>
                                                         </td>
                                                     )
@@ -269,7 +397,7 @@ function Reports() {
                                                     return (
                                                         <td key={s.period} style={{ textAlign: 'right' }}>
                                                             <span className="text-mono" style={{ fontSize: 13, fontWeight: val > 0 ? 600 : 400, color: val > 0 ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}>
-                                                                {val > 0 ? `₹${Number(val).toLocaleString('en-IN')}` : '—'}
+                                                                {val > 0 ? `${getCurrencySymbol(defaultCurrency)}${Number(val).toLocaleString('en-IN')}` : '—'}
                                                             </span>
                                                         </td>
                                                     )
@@ -281,59 +409,138 @@ function Reports() {
                             </div>
                         </div>
                     )}
-
-                    {/* Balance Sheet */}
-                    {(data?.summary?.length || 0) > 0 && (
-                        <div className="balance-sheet">
-                            <div className="balance-sheet__header">
-                                <h3 className="balance-sheet__title">Balance Sheet</h3>
-                                <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                                    {period.charAt(0).toUpperCase() + period.slice(1)} view
-                                </span>
-                            </div>
-                            <div className="balance-sheet__body">
-                                <div className="balance-sheet__column balance-sheet__column--income">
-                                    <h4 className="balance-sheet__column-title">Total Income by Period</h4>
-                                    {data!.summary.slice(0, 6).map(s => (
-                                        <div key={s.period} className="balance-sheet__row">
-                                            <span className="balance-sheet__row-label">
-                                                {formatPeriodLabel(s.period, period)}
-                                            </span>
-                                            <span className="balance-sheet__row-value text-income">
-                                                ₹{Number(s.income).toLocaleString('en-IN')}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="balance-sheet__column balance-sheet__column--expense">
-                                    <h4 className="balance-sheet__column-title">Total Expenses by Period</h4>
-                                    {data!.summary.slice(0, 6).map(s => (
-                                        <div key={s.period} className="balance-sheet__row">
-                                            <span className="balance-sheet__row-label">
-                                                {formatPeriodLabel(s.period, period)}
-                                            </span>
-                                            <span className="balance-sheet__row-value text-expense">
-                                                ₹{Number(s.expense).toLocaleString('en-IN')}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="balance-sheet__footer">
-                                <span className="balance-sheet__footer-label">Net Total</span>
-                                {(() => {
-                                    const net = data!.summary.reduce((s, r) => s + r.income - r.expense, 0)
-                                    return (
-                                        <span className={`balance-sheet__footer-value ${net >= 0 ? 'balance-sheet__footer-value--positive' : 'balance-sheet__footer-value--negative'}`}>
-                                            ₹{Number(net).toLocaleString('en-IN')}
-                                        </span>
-                                    )
-                                })()}
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
+        </div>
+    )
+}
+
+function BalanceSheetView({
+    balanceSheet,
+    plReport,
+    currencySymbol,
+}: {
+    balanceSheet: BalanceSheetData | null
+    plReport: PlReport | null
+    currencySymbol: string
+}) {
+    if (!balanceSheet) {
+        return (
+            <div className="card">
+                <div className="card__empty">No balance sheet data. Add accounts to see assets and liabilities.</div>
+            </div>
+        )
+    }
+    const { assets, liabilities, totalAssets, totalLiabilities } = balanceSheet
+    const netPl = plReport?.netPl ?? 0
+    const netProfit = netPl > 0 ? netPl : 0
+    const netLoss = netPl < 0 ? Math.abs(netPl) : 0
+    const totalEquityAndLiabilities = totalLiabilities + netProfit
+    const tallies = Math.abs(totalAssets - totalEquityAndLiabilities) < 0.01
+
+    const capitalItems = liabilities.filter(a => a.type === 'capital')
+    const otherLiabilities = liabilities.filter(a => a.type !== 'capital' && a.type !== 'equity')
+
+    return (
+        <div className="balance-sheet">
+            <div className="balance-sheet__header">
+                <h3 className="balance-sheet__title">Balance Sheet</h3>
+                <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                    As on date · Assets = Liabilities + Equity
+                </span>
+            </div>
+            <div className="balance-sheet__body">
+                <div className="balance-sheet__column balance-sheet__column--income">
+                    <h4 className="balance-sheet__column-title">Assets</h4>
+                    {assets.length === 0 ? (
+                        <div className="balance-sheet__row">
+                            <span className="balance-sheet__row-label">No asset accounts</span>
+                            <span className="balance-sheet__row-value">—</span>
+                        </div>
+                    ) : (
+                        assets.map(a => (
+                            <div key={a.id} className="balance-sheet__row">
+                                <span className="balance-sheet__row-label">
+                                    {a.name}
+                                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'capitalize' }}> ({a.type.replace(/_/g, ' ')})</span>
+                                </span>
+                                <span className="balance-sheet__row-value text-income">
+                                    {currencySymbol}{Number(a.balance).toLocaleString('en-IN')}
+                                </span>
+                            </div>
+                        ))
+                    )}
+                    <div className="balance-sheet__row" style={{ borderTop: '2px solid var(--color-border)', paddingTop: 12, marginTop: 4, fontWeight: 700 }}>
+                        <span className="balance-sheet__row-label">Total Assets</span>
+                        <span className="balance-sheet__row-value text-income" style={{ fontSize: 15 }}>
+                            {currencySymbol}{Number(totalAssets).toLocaleString('en-IN')}
+                        </span>
+                    </div>
+                </div>
+                <div className="balance-sheet__column balance-sheet__column--expense">
+                    <h4 className="balance-sheet__column-title">Liabilities & Equity</h4>
+                    {capitalItems.length > 0 && (
+                        <>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>Capital</div>
+                            {capitalItems.map(a => (
+                                <div key={a.id} className="balance-sheet__row">
+                                    <span className="balance-sheet__row-label">{a.name}</span>
+                                    <span className="balance-sheet__row-value text-expense">
+                                        {currencySymbol}{Number(a.balance).toLocaleString('en-IN')}
+                                    </span>
+                                </div>
+                            ))}
+                        </>
+                    )}
+                    {otherLiabilities.length > 0 && (
+                        <>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', margin: '12px 0 4px', textTransform: 'uppercase' }}>Other liabilities</div>
+                            {otherLiabilities.map(a => (
+                                <div key={a.id} className="balance-sheet__row">
+                                    <span className="balance-sheet__row-label">{a.name}</span>
+                                    <span className="balance-sheet__row-value text-expense">
+                                        {currencySymbol}{Number(a.balance).toLocaleString('en-IN')}
+                                    </span>
+                                </div>
+                            ))}
+                        </>
+                    )}
+                    {(netProfit > 0 || netLoss > 0) && (
+                        <div className="balance-sheet__row" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-border)' }}>
+                            <span className="balance-sheet__row-label">
+                                {netProfit > 0 ? 'Net Profit' : 'Net Loss'}
+                            </span>
+                            <span
+                                className={`balance-sheet__row-value ${netProfit > 0 ? 'text-income' : 'text-expense'}`}
+                                style={{ fontWeight: 700 }}
+                            >
+                                {netProfit > 0
+                                    ? `${currencySymbol}${Number(netProfit).toLocaleString('en-IN')}`
+                                    : `(${currencySymbol}${Number(netLoss).toLocaleString('en-IN')})`}
+                            </span>
+                        </div>
+                    )}
+                    <div className="balance-sheet__row" style={{ borderTop: '2px solid var(--color-border)', paddingTop: 12, marginTop: 4, fontWeight: 700 }}>
+                        <span className="balance-sheet__row-label">Total Liabilities & Equity</span>
+                        <span className="balance-sheet__row-value text-expense" style={{ fontSize: 15 }}>
+                            {currencySymbol}{Number(totalEquityAndLiabilities).toLocaleString('en-IN')}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div className="balance-sheet__footer">
+                <span className="balance-sheet__footer-label">
+                    {tallies ? '✓ Balances tally' : 'Difference'}
+                </span>
+                <span
+                    className={`balance-sheet__footer-value ${tallies ? 'balance-sheet__footer-value--positive' : 'balance-sheet__footer-value--negative'}`}
+                    style={{ fontSize: tallies ? 16 : 20 }}
+                >
+                    {tallies
+                        ? `${currencySymbol}${Number(totalAssets).toLocaleString('en-IN')} = ${currencySymbol}${Number(totalEquityAndLiabilities).toLocaleString('en-IN')}`
+                        : `${currencySymbol}${Number(Math.abs(totalAssets - totalEquityAndLiabilities)).toLocaleString('en-IN')} off`}
+                </span>
+            </div>
         </div>
     )
 }

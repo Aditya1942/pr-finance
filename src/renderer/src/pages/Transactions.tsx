@@ -4,8 +4,8 @@ import {
     Plus, Search, X, Trash2, Edit3,
     ArrowUpRight, ArrowDownRight, Tag as TagIcon, Filter
 } from 'lucide-react'
+import { getCurrencySymbol } from '../constants/currencies'
 import type { Transaction, Category, Tag, Account } from '../types'
-import { CURRENCY_CODES } from '../constants/currencies'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -28,6 +28,8 @@ function Transactions() {
     const [filterCategory, setFilterCategory] = useState<number | ''>('')
     const [filterTag, setFilterTag] = useState<number | ''>('')
     const [filterAccount, setFilterAccount] = useState<number | ''>('')
+    const [dateFrom, setDateFrom] = useState('')
+    const [dateTo, setDateTo] = useState('')
 
     // Bulk
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -47,7 +49,7 @@ function Transactions() {
     const [formType, setFormType] = useState<'income' | 'expense'>('expense')
     const [formTags, setFormTags] = useState<number[]>([])
     const [formAccount, setFormAccount] = useState<number | ''>('')
-    const [formCurrency, setFormCurrency] = useState('USD')
+    const [defaultCurrency, setDefaultCurrency] = useState('USD')
     const [newTagName, setNewTagName] = useState('')
 
     useEffect(() => {
@@ -56,18 +58,20 @@ function Transactions() {
 
     useEffect(() => {
         loadTransactions()
-    }, [search, filterType, filterCategory, filterTag, filterAccount])
+    }, [search, filterType, filterCategory, filterTag, filterAccount, dateFrom, dateTo])
 
     async function loadData() {
         try {
-            const [cats, tgs, accs] = await Promise.all([
+            const [cats, tgs, accs, currency] = await Promise.all([
                 window.api.getCategories(),
                 window.api.getTags(),
-                window.api.getAccounts().catch(() => [])
+                window.api.getAccounts().catch(() => []),
+                window.api.getDefaultCurrency().then(c => c || 'USD')
             ])
             setCategories(cats)
             setTags(tgs)
             setAccounts(accs)
+            setDefaultCurrency(currency)
             await loadTransactions()
         } catch (err) {
             console.error(err)
@@ -84,6 +88,8 @@ function Transactions() {
             if (filterCategory) filters.categoryId = filterCategory
             if (filterTag) filters.tagId = filterTag
             if (filterAccount) filters.accountId = filterAccount
+            if (dateFrom) filters.startDate = dateFrom
+            if (dateTo) filters.endDate = dateTo
             const txs = await window.api.getTransactions(filters)
             setTransactions(txs)
         } catch (err) {
@@ -129,7 +135,7 @@ function Transactions() {
         }
     }
 
-    async function openAddModal() {
+    function openAddModal() {
         setEditingTx(null)
         setFormDate(new Date().toISOString().split('T')[0])
         setFormAmount('')
@@ -138,12 +144,6 @@ function Transactions() {
         setFormType('expense')
         setFormTags([])
         setFormAccount('')
-        try {
-            const defaultCurrency = await window.api.getDefaultCurrency()
-            setFormCurrency(defaultCurrency || 'USD')
-        } catch {
-            setFormCurrency('USD')
-        }
         setShowModal(true)
     }
 
@@ -156,7 +156,6 @@ function Transactions() {
         setFormType(tx.type)
         setFormTags(tx.tags?.map(t => t.id) || [])
         setFormAccount(tx.account_id ?? '')
-        setFormCurrency(tx.currency || 'USD')
         setShowModal(true)
     }
 
@@ -171,7 +170,6 @@ function Transactions() {
             type: formType,
             tagIds: formTags,
             account_id: formAccount === '' ? null : (formAccount as number),
-            currency: formCurrency,
         }
 
         try {
@@ -216,6 +214,10 @@ function Transactions() {
     }
 
     const filteredCategories = categories.filter(c => c.type === formType)
+
+    const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+    const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+    const netTotal = totalIncome - totalExpense
 
     if (loading) {
         return (
@@ -287,6 +289,39 @@ function Transactions() {
                         ))}
                     </select>
                 )}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                        type="date"
+                        className="form-input"
+                        placeholder="From"
+                        value={dateFrom}
+                        onChange={e => setDateFrom(e.target.value)}
+                        style={{ padding: '8px 10px', fontSize: 13, minWidth: 130 }}
+                        title="From date"
+                    />
+                    <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>→</span>
+                    <input
+                        type="date"
+                        className="form-input"
+                        placeholder="To"
+                        value={dateTo}
+                        onChange={e => setDateTo(e.target.value)}
+                        style={{ padding: '8px 10px', fontSize: 13, minWidth: 130 }}
+                        title="To date"
+                    />
+                    {(dateFrom || dateTo) && (
+                        <button
+                            type="button"
+                            className="btn btn--ghost btn--icon"
+                            onClick={() => { setDateFrom(''); setDateTo('') }}
+                            title="Clear date range"
+                            aria-label="Clear date range"
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
+                </div>
 
                 <div className="toolbar__search">
                     <Search size={14} className="toolbar__search-icon" />
@@ -395,7 +430,7 @@ function Transactions() {
                                             className={`text-mono font-bold ${tx.type === 'income' ? 'text-income' : 'text-expense'}`}
                                             style={{ fontSize: 14 }}
                                         >
-                                            {tx.type === 'income' ? '+' : '-'}{(tx.currency || 'USD')} {Number(tx.amount).toLocaleString()}
+                                            {tx.type === 'income' ? '+' : '-'}{getCurrencySymbol(defaultCurrency)} {Number(tx.amount).toLocaleString()}
                                         </span>
                                     </td>
                                     <td>
@@ -411,6 +446,22 @@ function Transactions() {
                                 </tr>
                             ))}
                         </tbody>
+                        <tfoot>
+                            <tr style={{ background: 'var(--color-bg-subtle)' }}>
+                                <td colSpan={5} style={{ padding: '12px 16px', fontWeight: 600, borderTop: '2px solid var(--color-border)' }}>
+                                    Total
+                                </td>
+                                <td style={{ textAlign: 'right', padding: '12px 16px', borderTop: '2px solid var(--color-border)' }}>
+                                    <span
+                                        className={`text-mono font-bold ${netTotal >= 0 ? 'text-income' : 'text-expense'}`}
+                                        style={{ fontSize: 14 }}
+                                    >
+                                        {netTotal >= 0 ? '+' : ''}{getCurrencySymbol(defaultCurrency)} {netTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                    </span>
+                                </td>
+                                <td style={{ width: 80, borderTop: '2px solid var(--color-border)' }} />
+                            </tr>
+                        </tfoot>
                     </table>
                 ) : (
                     <div className="card__empty" style={{ padding: 60 }}>
@@ -489,29 +540,16 @@ function Transactions() {
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Amount</label>
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            placeholder="0"
-                                            value={formAmount}
-                                            onChange={e => setFormAmount(e.target.value)}
-                                            style={{ fontFamily: 'var(--font-mono)', flex: 1 }}
-                                            min="0"
-                                            step="0.01"
-                                        />
-                                        <select
-                                            className="form-select"
-                                            value={formCurrency}
-                                            onChange={e => setFormCurrency(e.target.value)}
-                                            style={{ width: 88 }}
-                                            title="Currency"
-                                        >
-                                            {CURRENCY_CODES.map(code => (
-                                                <option key={code} value={code}>{code}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="0"
+                                        value={formAmount}
+                                        onChange={e => setFormAmount(e.target.value)}
+                                        style={{ fontFamily: 'var(--font-mono)' }}
+                                        min="0"
+                                        step="0.01"
+                                    />
                                 </div>
                             </div>
 
@@ -560,23 +598,41 @@ function Transactions() {
                             <div className="form-group">
                                 <label className="form-label">
                                     <TagIcon size={12} style={{ display: 'inline', marginRight: 4 }} />
-                                    Tags
+                                    Tags (click to add, × to remove)
                                 </label>
                                 <div className="tag-select">
-                                    {tags.map(tag => (
-                                        <span
-                                            key={tag.id}
-                                            className={`tag-select__tag ${formTags.includes(tag.id) ? 'tag-select__tag--selected' : ''}`}
-                                            style={{
-                                                background: formTags.includes(tag.id) ? tag.color + '20' : 'transparent',
-                                                color: tag.color,
-                                                borderColor: formTags.includes(tag.id) ? tag.color : 'var(--color-border)',
-                                            }}
-                                            onClick={() => toggleTag(tag.id)}
-                                        >
-                                            {tag.name}
-                                        </span>
-                                    ))}
+                                    {tags.map(tag => {
+                                        const selected = formTags.includes(tag.id)
+                                        return (
+                                            <span
+                                                key={tag.id}
+                                                className={`tag-select__tag ${selected ? 'tag-select__tag--selected' : ''}`}
+                                                style={{
+                                                    background: selected ? tag.color + '20' : 'transparent',
+                                                    color: tag.color,
+                                                    borderColor: selected ? tag.color : 'var(--color-border)',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 4,
+                                                }}
+                                                onClick={() => !selected && toggleTag(tag.id)}
+                                            >
+                                                <span>{tag.name}</span>
+                                                {selected && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn--ghost btn--icon"
+                                                        style={{ padding: 2, minWidth: 20, minHeight: 20, color: tag.color }}
+                                                        onClick={e => { e.stopPropagation(); toggleTag(tag.id) }}
+                                                        title="Remove tag"
+                                                        aria-label={`Remove ${tag.name}`}
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                )}
+                                            </span>
+                                        )
+                                    })}
                                     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                                         <input
                                             type="text"

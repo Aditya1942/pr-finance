@@ -27,6 +27,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('db:updateAccount', id, data),
   deleteAccount: (id: number) => ipcRenderer.invoke('db:deleteAccount', id),
   getAccountBalances: () => ipcRenderer.invoke('db:getAccountBalances'),
+  transfer: (data: { from_account_id: number; to_account_id: number; amount: number; date: string; memo?: string }) =>
+    ipcRenderer.invoke('db:transfer', data),
   getPlReport: () => ipcRenderer.invoke('db:getPlReport'),
   getBalanceSheet: () => ipcRenderer.invoke('db:getBalanceSheet'),
 
@@ -103,6 +105,19 @@ contextBridge.exposeInMainWorld('api', {
   getDatabaseStats: () => ipcRenderer.invoke('db:getDatabaseStats'),
   importCsv: () => ipcRenderer.invoke('db:importCsv'),
   restoreDatabase: () => ipcRenderer.invoke('db:restoreDatabase'),
+
+  // Savings Goals
+  getSavingGoals: () => ipcRenderer.invoke('db:getSavingGoals'),
+  getSavingsPool: () => ipcRenderer.invoke('db:getSavingsPool'),
+  createSavingGoal: (data: { name: string; target_amount: number; emoji?: string; color?: string; deadline?: string | null }) =>
+    ipcRenderer.invoke('db:createSavingGoal', data),
+  updateSavingGoal: (id: number, data: { name?: string; target_amount?: number; emoji?: string; color?: string; deadline?: string | null }) =>
+    ipcRenderer.invoke('db:updateSavingGoal', id, data),
+  deleteSavingGoal: (id: number) => ipcRenderer.invoke('db:deleteSavingGoal', id),
+  getSavingGoalAllocations: (goalId: number) => ipcRenderer.invoke('db:getSavingGoalAllocations', goalId),
+  addSavingGoalAllocation: (data: { goal_id: number; amount: number; date: string; note?: string }) =>
+    ipcRenderer.invoke('db:addSavingGoalAllocation', data),
+  deleteSavingGoalAllocation: (id: number) => ipcRenderer.invoke('db:deleteSavingGoalAllocation', id),
 
   // Platform
   platform: process.platform,

@@ -13,6 +13,7 @@ const ROUTE_TITLES: Record<string, string> = {
     '/tags': 'Tags',
     '/recurring': 'Recurring',
     '/reminders': 'Reminders',
+    '/savings-goals': 'Savings Goals',
     '/settings': 'Settings',
 }
 
@@ -44,6 +45,10 @@ function AppLayout() {
             if (num) {
                 e.preventDefault()
                 navigate(num.path)
+            }
+            if (e.key === 'g' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault()
+                navigate('/savings-goals')
             }
         }
         window.addEventListener('keydown', onKey)

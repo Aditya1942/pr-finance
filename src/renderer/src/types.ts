@@ -113,6 +113,32 @@ export interface Reminder {
     created_at: string
 }
 
+export interface SavingGoal {
+    id: number
+    name: string
+    target_amount: number
+    allocated_amount: number
+    emoji: string
+    color: string
+    deadline: string | null
+    created_at: string
+}
+
+export interface SavingGoalAllocation {
+    id: number
+    goal_id: number
+    amount: number
+    date: string
+    note: string | null
+    created_at: string
+}
+
+export interface SavingsPool {
+    totalSavings: number
+    totalAllocated: number
+    unallocated: number
+}
+
 // Window API type declaration
 declare global {
     interface Window {
@@ -131,6 +157,7 @@ declare global {
             updateAccount: (id: number, data: { name?: string; type?: string; initial_balance?: number }) => Promise<{ success: boolean }>
             deleteAccount: (id: number) => Promise<{ success: boolean }>
             getAccountBalances: () => Promise<AccountBalance[]>
+            transfer: (data: { from_account_id: number; to_account_id: number; amount: number; date: string; memo?: string }) => Promise<{ success: boolean }>
             getPlReport: () => Promise<PlReport>
             getBalanceSheet: () => Promise<BalanceSheetData>
             getTransactions: (filters?: {
@@ -183,6 +210,15 @@ declare global {
                 tables: { name: string; count: number }[]
                 path: string
             }>
+            // Savings Goals
+            getSavingGoals: () => Promise<SavingGoal[]>
+            getSavingsPool: () => Promise<SavingsPool>
+            createSavingGoal: (data: { name: string; target_amount: number; emoji?: string; color?: string; deadline?: string | null }) => Promise<{ id: number }>
+            updateSavingGoal: (id: number, data: { name?: string; target_amount?: number; emoji?: string; color?: string; deadline?: string | null }) => Promise<{ success: boolean }>
+            deleteSavingGoal: (id: number) => Promise<{ success: boolean }>
+            getSavingGoalAllocations: (goalId: number) => Promise<SavingGoalAllocation[]>
+            addSavingGoalAllocation: (data: { goal_id: number; amount: number; date: string; note?: string }) => Promise<{ id: number }>
+            deleteSavingGoalAllocation: (id: number) => Promise<{ success: boolean }>
             platform: string
         }
     }

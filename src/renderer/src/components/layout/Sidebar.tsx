@@ -11,6 +11,7 @@ import {
     FolderTree,
     Repeat,
     Bell,
+    PiggyBank,
     Settings
 } from 'lucide-react'
 
@@ -24,6 +25,7 @@ const navItems = [
     { to: '/tags', label: 'Tags', icon: Tag },
     { to: '/recurring', label: 'Recurring', icon: Repeat },
     { to: '/reminders', label: 'Reminders', icon: Bell },
+    { to: '/savings-goals', label: 'Savings Goals', icon: PiggyBank },
     { to: '/settings', label: 'Settings', icon: Settings },
 ]
 

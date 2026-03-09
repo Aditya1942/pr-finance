@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Save, Download, Database, Trash2, HardDrive, FileSpreadsheet, AlertTriangle, CheckCircle, Settings2, Table2, Shield, Search, X, ChevronDown, Check, Upload, FileUp } from 'lucide-react'
-import { CURRENCY_CODES } from '../constants/currencies'
+import { CURRENCY_CODES, getCurrencySymbol } from '../constants/currencies'
 
 type Tab = 'general' | 'database'
 
@@ -337,7 +337,7 @@ function Settings() {
                                         setCurrencyPickerOpen(false)
                                     }}
                                 >
-                                    <span className="currency-picker__code">{code}</span>
+                                    <span className="currency-picker__code">{code} {getCurrencySymbol(code)}</span>
                                     {code === defaultCurrency && (
                                         <Check size={16} className="currency-picker__check" />
                                     )}
@@ -354,14 +354,14 @@ function Settings() {
                     <div className="card">
                         <h3 className="chart-card__title" style={{ marginBottom: 16 }}>Default currency</h3>
                         <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginBottom: 16 }}>
-                            Used when adding new transactions. You can change it per transaction in the add/edit form.
+                            All amounts are stored and displayed in this currency.
                         </p>
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                             <button
                                 className="currency-trigger"
                                 onClick={() => setCurrencyPickerOpen(true)}
                             >
-                                <span className="currency-trigger__code">{defaultCurrency}</span>
+                                <span className="currency-trigger__code">{getCurrencySymbol(defaultCurrency)} ({defaultCurrency})</span>
                                 <ChevronDown size={16} className="currency-trigger__chevron" />
                             </button>
                             <button className="btn btn--primary" onClick={saveDefaultCurrency}>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Save, AlertTriangle } from 'lucide-react'
+import { getCurrencySymbol } from '../constants/currencies'
 import type { BudgetItem } from '../types'
 
 function Budget() {
+    const [defaultCurrency, setDefaultCurrency] = useState('USD')
     const [budgets, setBudgets] = useState<BudgetItem[]>([])
     const [loading, setLoading] = useState(true)
     const [editingId, setEditingId] = useState<number | null>(null)
@@ -14,8 +16,12 @@ function Budget() {
 
     async function loadBudgets() {
         try {
-            const data = await window.api.getBudgetOverview()
+            const [data, currency] = await Promise.all([
+                window.api.getBudgetOverview(),
+                window.api.getDefaultCurrency().then(c => c || 'USD'),
+            ])
             setBudgets(data)
+            setDefaultCurrency(currency)
         } catch (err) {
             console.error(err)
         } finally {
@@ -62,13 +68,13 @@ function Budget() {
                 <div className="summary-card summary-card--balance">
                     <div className="summary-card__label">Total Budget</div>
                     <div className="summary-card__value" style={{ fontSize: 26 }}>
-                        ₹{totalBudget.toLocaleString('en-IN')}
+                        {getCurrencySymbol(defaultCurrency)}{totalBudget.toLocaleString('en-IN')}
                     </div>
                 </div>
                 <div className="summary-card summary-card--expense">
                     <div className="summary-card__label">Total Spent (This Month)</div>
                     <div className="summary-card__value" style={{ fontSize: 26 }}>
-                        ₹{totalSpent.toLocaleString('en-IN')}
+                        {getCurrencySymbol(defaultCurrency)}{totalSpent.toLocaleString('en-IN')}
                     </div>
                 </div>
                 <div className={`summary-card ${overBudgetCount > 0 ? 'summary-card--expense' : 'summary-card--savings'}`}>
@@ -99,10 +105,10 @@ function Budget() {
                                 </div>
                                 <div className="budget-card__amounts">
                                     <div className={`budget-card__spent ${isOver ? 'text-expense' : ''}`}>
-                                        ₹{item.spent.toLocaleString('en-IN')}
+                                        {getCurrencySymbol(defaultCurrency)}{item.spent.toLocaleString('en-IN')}
                                     </div>
                                     <div className="budget-card__budget">
-                                        / ₹{(item.budget_amount || 0).toLocaleString('en-IN')}
+                                        / {getCurrencySymbol(defaultCurrency)}{(item.budget_amount || 0).toLocaleString('en-IN')}
                                     </div>
                                 </div>
                             </div>

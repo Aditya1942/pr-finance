@@ -708,6 +708,12 @@ body {
   color: #06b6d4;
 }
 
+.summary-card__value-meta {
+  font-size: 0.85em;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
 .summary-card__change {
   display: inline-flex;
   align-items: center;
@@ -1908,4 +1914,245 @@ body {
   text-align: center;
   color: var(--color-text-muted);
   font-size: 14px;
+}
+
+/* ============================================
+   Savings Goals Page
+   ============================================ */
+.savings-goal-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  border-radius: 16px;
+  padding: 20px;
+  animation: fadeInUp 0.4s ease-out both;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow var(--transition-base), transform var(--transition-base);
+  cursor: pointer;
+  position: relative;
+}
+.savings-goal-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.savings-goal-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.savings-goal-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.savings-goal-card__emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+.savings-goal-card__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.savings-goal-card__actions {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.savings-goal-card:hover .savings-goal-card__actions {
+  opacity: 1;
+}
+
+.savings-goal-card__amounts {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.savings-goal-card__allocated {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+.savings-goal-card__target {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.savings-goal-card__progress {
+  height: 8px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.savings-goal-card__progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  animation: progressFill 0.8s ease-out both;
+  transition: width 0.4s ease;
+  position: relative;
+}
+.savings-goal-card__progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: shimmer 2s infinite;
+}
+
+.savings-goal-card__meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.savings-goal-card__pct {
+  font-weight: 600;
+}
+.savings-goal-card__deadline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.savings-goal-card__deadline--urgent {
+  color: #f59e0b;
+}
+.savings-goal-card__deadline--overdue {
+  color: #ef4444;
+}
+.savings-goal-card__deadline--complete {
+  color: #22c55e;
+}
+
+.savings-goal-card__remaining {
+  font-size: 13px;
+  padding: 8px 12px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+.savings-goal-card__remaining strong {
+  color: var(--color-text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Allocation List ── */
+.savings-goal-allocations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.savings-goal-allocation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  transition: background var(--transition-fast);
+}
+.savings-goal-allocation-row:hover {
+  background: var(--color-bg-tertiary, var(--color-bg-secondary));
+}
+.savings-goal-allocation-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.savings-goal-allocation-row__amount {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+.savings-goal-allocation-row__meta {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+/* ── Empty State ── */
+.savings-goals-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+.savings-goals-empty__icon {
+  font-size: 48px;
+  opacity: 0.4;
+}
+.savings-goals-empty__text {
+  font-size: 15px;
+  max-width: 300px;
+}
+
+/* ── Color Picker ── */
+.savings-goal-colors {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.savings-goal-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+.savings-goal-color-swatch:hover {
+  transform: scale(1.15);
+}
+.savings-goal-color-swatch--active {
+  border-color: var(--color-text-primary);
+  transform: scale(1.15);
+}
+
+/* ── Summary Pool Card ── */
+.savings-pool-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.savings-pool-card__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.savings-pool-card__value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+.savings-pool-card--total .savings-pool-card__value {
+  color: var(--color-accent-cyan, #06b6d4);
+}
+.savings-pool-card--allocated .savings-pool-card__value {
+  color: var(--color-accent-indigo, #6366f1);
+}
+.savings-pool-card--unallocated .savings-pool-card__value {
+  color: var(--color-accent-green, #22c55e);
 }

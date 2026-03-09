@@ -153,6 +153,51 @@ function runMigrations() {
     `)
     db.prepare('UPDATE schema_version SET version = 3').run()
   }
+
+  if (version < 4) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS transfers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_account_id INTEGER NOT NULL,
+        to_account_id INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        memo TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (from_account_id) REFERENCES accounts(id),
+        FOREIGN KEY (to_account_id) REFERENCES accounts(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_transfers_from ON transfers(from_account_id);
+      CREATE INDEX IF NOT EXISTS idx_transfers_to ON transfers(to_account_id);
+    `)
+    db.prepare('UPDATE schema_version SET version = 4').run()
+  }
+
+  if (version < 5) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS saving_goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        target_amount REAL NOT NULL,
+        emoji TEXT DEFAULT '🎯',
+        color TEXT DEFAULT '#06b6d4',
+        deadline TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS saving_goal_allocations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        goal_id INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        note TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (goal_id) REFERENCES saving_goals(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_sga_goal ON saving_goal_allocations(goal_id);
+    `)
+    db.prepare('UPDATE schema_version SET version = 5').run()
+  }
 }
 
 // ─── IPC Handlers ────────────────────────────────────────────
@@ -221,6 +266,7 @@ function registerIpcHandlers() {
 
   ipcMain.handle('db:deleteAccount', (_event, id: number) => {
     db.prepare('UPDATE transactions SET account_id = NULL WHERE account_id = ?').run(id)
+    db.prepare('DELETE FROM transfers WHERE from_account_id = ? OR to_account_id = ?').run(id, id)
     db.prepare('DELETE FROM accounts WHERE id = ?').run(id)
     return { success: true }
   })
@@ -230,13 +276,38 @@ function registerIpcHandlers() {
     const getBalance = db.prepare(`
       SELECT
         (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ? AND type = 'income') -
-        (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ? AND type = 'expense') as net
+        (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ? AND type = 'expense') +
+        (SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE to_account_id = ?) -
+        (SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE from_account_id = ?) as net
     `)
     return accounts.map(a => {
-      const row = getBalance.get(a.id, a.id) as { net: number }
+      const row = getBalance.get(a.id, a.id, a.id, a.id) as { net: number }
       const balance = (a.initial_balance ?? 0) + (row?.net ?? 0)
       return { ...a, balance }
     })
+  })
+
+  ipcMain.handle('db:transfer', (_event, data: {
+    from_account_id: number
+    to_account_id: number
+    amount: number
+    date: string
+    memo?: string
+  }) => {
+    if (data.from_account_id === data.to_account_id) {
+      throw new Error('Source and destination accounts must be different')
+    }
+    if (!data.amount || data.amount <= 0) {
+      throw new Error('Amount must be greater than zero')
+    }
+    const fromAcc = db.prepare('SELECT id FROM accounts WHERE id = ?').get(data.from_account_id)
+    const toAcc = db.prepare('SELECT id FROM accounts WHERE id = ?').get(data.to_account_id)
+    if (!fromAcc || !toAcc) throw new Error('Account not found')
+    db.prepare(`
+      INSERT INTO transfers (from_account_id, to_account_id, amount, date, memo)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(data.from_account_id, data.to_account_id, data.amount, data.date, data.memo?.trim() || null)
+    return { success: true }
   })
 
   // ── P&L and Balance Sheet (Legacy) ──
@@ -253,10 +324,12 @@ function registerIpcHandlers() {
       const getBalance = db.prepare(`
         SELECT
           (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ? AND type = 'income') -
-          (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ? AND type = 'expense') as net
+          (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ? AND type = 'expense') +
+          (SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE to_account_id = ?) -
+          (SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE from_account_id = ?) as net
       `)
       const withBalance = accounts.map(a => {
-        const row = getBalance.get(a.id, a.id) as { net: number }
+        const row = getBalance.get(a.id, a.id, a.id, a.id) as { net: number }
         return { ...a, balance: (a.initial_balance ?? 0) + (row?.net ?? 0) }
       })
       const assetTypes = ['cash', 'bank', 'saving', 'investment', 'account_receivable']
@@ -768,6 +841,7 @@ function registerIpcHandlers() {
       DELETE FROM reminders;
       DELETE FROM recurring_templates;
       DELETE FROM exchange_rates;
+      DELETE FROM transfers;
       DELETE FROM tags;
       DELETE FROM categories;
       DELETE FROM accounts;
@@ -1054,6 +1128,81 @@ function registerIpcHandlers() {
     doImport()
 
     return { success: true, imported, skipped, errors: errors.slice(0, 10) }
+  })
+
+  // ── Savings Goals ──
+  ipcMain.handle('db:getSavingGoals', () => {
+    return db.prepare(`
+      SELECT sg.*,
+        COALESCE(SUM(sga.amount), 0) as allocated_amount
+      FROM saving_goals sg
+      LEFT JOIN saving_goal_allocations sga ON sga.goal_id = sg.id
+      GROUP BY sg.id
+      ORDER BY sg.created_at DESC
+    `).all()
+  })
+
+  ipcMain.handle('db:getSavingsPool', () => {
+    const accounts = db.prepare("SELECT * FROM accounts WHERE type = 'saving' ORDER BY name").all() as { id: number; name: string; type: string; initial_balance: number }[]
+    const getBalance = db.prepare(`
+      SELECT
+        (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ? AND type = 'income') -
+        (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ? AND type = 'expense') +
+        (SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE to_account_id = ?) -
+        (SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE from_account_id = ?) as net
+    `)
+    let totalSavings = 0
+    for (const a of accounts) {
+      const row = getBalance.get(a.id, a.id, a.id, a.id) as { net: number }
+      totalSavings += (a.initial_balance ?? 0) + (row?.net ?? 0)
+    }
+    const totalAllocated = (db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM saving_goal_allocations').get() as { total: number }).total
+    return { totalSavings, totalAllocated, unallocated: totalSavings - totalAllocated }
+  })
+
+  ipcMain.handle('db:createSavingGoal', (_event, data: { name: string; target_amount: number; emoji?: string; color?: string; deadline?: string | null }) => {
+    const stmt = db.prepare('INSERT INTO saving_goals (name, target_amount, emoji, color, deadline) VALUES (?, ?, ?, ?, ?)')
+    const result = stmt.run(data.name, data.target_amount, data.emoji ?? '🎯', data.color ?? '#06b6d4', data.deadline ?? null)
+    return { id: result.lastInsertRowid }
+  })
+
+  ipcMain.handle('db:updateSavingGoal', (_event, id: number, data: { name?: string; target_amount?: number; emoji?: string; color?: string; deadline?: string | null }) => {
+    const updates: string[] = []
+    const params: any[] = []
+    if (data.name !== undefined) { updates.push('name = ?'); params.push(data.name) }
+    if (data.target_amount !== undefined) { updates.push('target_amount = ?'); params.push(data.target_amount) }
+    if (data.emoji !== undefined) { updates.push('emoji = ?'); params.push(data.emoji) }
+    if (data.color !== undefined) { updates.push('color = ?'); params.push(data.color) }
+    if (data.deadline !== undefined) { updates.push('deadline = ?'); params.push(data.deadline) }
+    if (updates.length === 0) return { success: true }
+    params.push(id)
+    db.prepare(`UPDATE saving_goals SET ${updates.join(', ')} WHERE id = ?`).run(...params)
+    return { success: true }
+  })
+
+  ipcMain.handle('db:deleteSavingGoal', (_event, id: number) => {
+    db.prepare('DELETE FROM saving_goals WHERE id = ?').run(id)
+    return { success: true }
+  })
+
+  ipcMain.handle('db:getSavingGoalAllocations', (_event, goalId: number) => {
+    return db.prepare(`
+      SELECT id, goal_id, amount, date, note, created_at
+      FROM saving_goal_allocations
+      WHERE goal_id = ?
+      ORDER BY date DESC
+    `).all(goalId)
+  })
+
+  ipcMain.handle('db:addSavingGoalAllocation', (_event, data: { goal_id: number; amount: number; date: string; note?: string }) => {
+    const stmt = db.prepare('INSERT INTO saving_goal_allocations (goal_id, amount, date, note) VALUES (?, ?, ?, ?)')
+    const result = stmt.run(data.goal_id, data.amount, data.date, data.note ?? null)
+    return { id: result.lastInsertRowid }
+  })
+
+  ipcMain.handle('db:deleteSavingGoalAllocation', (_event, id: number) => {
+    db.prepare('DELETE FROM saving_goal_allocations WHERE id = ?').run(id)
+    return { success: true }
   })
 
   // ── Restore Database from .db file ──

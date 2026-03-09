@@ -29,4 +29,33 @@ export const CURRENCY_RATES_USD: Record<string, number> = {
   YER: 238.135434, ZAR: 16.482907, ZMW: 19.132097, ZWG: 25.7665, ZWL: 25.7665,
 }
 
+/** Currency code → symbol map (ISO 4217 graphemes; source: xsolla/currency-format). Fallback: code. */
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  AED: '.د.إ', AFN: '؋', ALL: 'Lek', AMD: 'դր.', ANG: 'NAƒ', AOA: 'Kz', ARS: '$', AUD: 'A$', AWG: 'Afl',
+  AZN: '₼', BAM: 'KM', BBD: '$', BDT: '৳', BGN: 'лв', BHD: '.د.ب', BIF: 'FBu', BMD: 'BD$', BND: '$',
+  BOB: 'Bs.', BRL: 'R$', BSD: '$', BTN: 'Nu.', BWP: 'P', BYN: 'р.', BZD: 'BZ$', CAD: 'CA$', CDF: 'FC',
+  CHF: 'fr.', CLF: 'UF', CLP: '$', CNH: '¥', CNY: '元', COP: '$', CRC: '₡', CUP: '$MN', CVE: 'esc',
+  CZK: 'Kč', DJF: 'Fdj', DKK: 'kr', DOP: 'RD$', DZD: '.د.ج', EGP: '.ج.م', ERN: 'Nkf', ETB: 'Br',
+  EUR: '€', FJD: 'FJ$', FKP: '£', FOK: 'kr', GBP: '£', GEL: '₾', GGP: '£', GHS: 'GH₵', GIP: '£',
+  GMD: 'D', GNF: 'GFr', GTQ: 'Q', GYD: 'GY$', HKD: 'HK$', HNL: 'L', HRK: 'kn', HTG: 'G', HUF: 'Ft',
+  IDR: 'Rp', ILS: '₪', IMP: '£', INR: '₹', IQD: '.د.ع', IRR: '﷼', ISK: 'kr', JEP: '£', JMD: 'J$',
+  JOD: '.د.إ', JPY: '¥', KES: 'KSh', KGS: 'сом', KHR: '៛', KID: '$', KMF: 'CF', KRW: '₩', KWD: '.د.ك',
+  KYD: 'CI$', KZT: '₸', LAK: '₭', LBP: '.ل.ل', LKR: '₨', LRD: 'L$', LSL: 'L', LYD: '.د.ل', MAD: '.د.م',
+  MDL: 'lei', MGA: 'Ar', MKD: 'ден', MMK: 'K', MNT: '₮', MOP: 'MOP$', MRU: 'UM', MUR: '₨', MVR: 'MVR',
+  MWK: 'MK', MXN: '$', MYR: 'RM', MZN: 'MT', NAD: 'N$', NGN: '₦', NIO: 'C$', NOK: 'kr', NPR: '₨',
+  NZD: 'NZ$', OMR: '.ر.ع', PAB: 'B/.', PEN: 'S/', PGK: 'K', PHP: '₱', PKR: '₨', PLN: 'zł', PYG: 'Gs',
+  QAR: '.ر.ق', RON: 'lei', RSD: 'Дин.', RUB: '₽', RWF: 'R₣', SAR: '.ر.س', SBD: 'SI$', SCR: '₨',
+  SDG: 'SDG', SEK: 'kr', SGD: 'S$', SHP: '£', SLE: 'Le', SLL: 'Le', SOS: 'S', SRD: '$', SSP: 'SS£',
+  STN: 'Db', SYP: '.ل.س', SZL: 'L', THB: '฿', TJS: 'SM', TMT: 'T', TND: '.د.ت', TOP: 'T$', TRY: '₺',
+  TTD: 'TT$', TVD: '$', TWD: 'NT$', TZS: 'TSh', UAH: '₴', UGX: 'USh', USD: '$', UYU: '$U', UZS: "so'm",
+  VES: 'Bs', VND: '₫', VUV: 'VT', WST: 'WS$', XAF: 'FCFA', XCD: 'EC$', XCG: 'ƒ', XDR: 'SDR',
+  XOF: 'CFA', XPF: '₣', YER: '.ر.ي', ZAR: 'R', ZMW: 'K', ZWG: 'Z$', ZWL: 'Z$',
+}
+
+/** Returns the display symbol for a currency code; falls back to the code if unknown. */
+export function getCurrencySymbol(code: string | null | undefined): string {
+  if (code == null || code === '') return ''
+  return CURRENCY_SYMBOLS[code] ?? code
+}
+
 export const CURRENCY_CODES = Object.keys(CURRENCY_RATES_USD).sort()

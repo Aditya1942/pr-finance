@@ -8,6 +8,7 @@ import AnimatedCounter from '../components/charts/AnimatedCounter'
 import BarChart from '../components/charts/BarChart'
 import DonutChart from '../components/charts/DonutChart'
 import SparkLine from '../components/charts/SparkLine'
+import { getCurrencySymbol } from '../constants/currencies'
 import type { DashboardSummary, AccountBalance, BalanceSheetData } from '../types'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -21,6 +22,7 @@ function Dashboard() {
     const [data, setData] = useState<DashboardSummary | null>(null)
     const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([])
     const [balanceSheet, setBalanceSheet] = useState<BalanceSheetData | null>(null)
+    const [defaultCurrency, setDefaultCurrency] = useState('USD')
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -29,14 +31,16 @@ function Dashboard() {
 
     async function loadData() {
         try {
-            const [summary, balances, sheet] = await Promise.all([
+            const [summary, balances, sheet, currency] = await Promise.all([
                 window.api.getDashboardSummary(),
                 window.api.getAccountBalances().catch(() => []),
-                window.api.getBalanceSheet().catch(() => null)
+                window.api.getBalanceSheet().catch(() => null),
+                window.api.getDefaultCurrency().then(c => c || 'USD')
             ])
             setData(summary)
             setAccountBalances(balances)
             setBalanceSheet(sheet)
+            setDefaultCurrency(currency)
         } catch (err) {
             console.error('Failed to load dashboard:', err)
         } finally {
@@ -87,7 +91,7 @@ function Dashboard() {
                     </div>
                     <div className="summary-card__label">Total Income</div>
                     <div className="summary-card__value">
-                        <AnimatedCounter value={data.totalIncome} prefix="₹" decimals={0} />
+                        <AnimatedCounter value={data.totalIncome} prefix={`${getCurrencySymbol(defaultCurrency)} `} decimals={0} />
                     </div>
                 </div>
 
@@ -97,7 +101,7 @@ function Dashboard() {
                     </div>
                     <div className="summary-card__label">Total Expenses</div>
                     <div className="summary-card__value">
-                        <AnimatedCounter value={data.totalExpense} prefix="₹" decimals={0} />
+                        <AnimatedCounter value={data.totalExpense} prefix={`${getCurrencySymbol(defaultCurrency)} `} decimals={0} />
                     </div>
                 </div>
 
@@ -107,7 +111,7 @@ function Dashboard() {
                     </div>
                     <div className="summary-card__label">Net Balance</div>
                     <div className="summary-card__value">
-                        <AnimatedCounter value={data.netBalance} prefix="₹" decimals={0} />
+                        <AnimatedCounter value={data.netBalance} prefix={`${getCurrencySymbol(defaultCurrency)} `} decimals={0} />
                     </div>
                 </div>
 
@@ -117,7 +121,8 @@ function Dashboard() {
                     </div>
                     <div className="summary-card__label">Savings Rate</div>
                     <div className="summary-card__value">
-                        <AnimatedCounter value={data.savingsRate} suffix="%" decimals={1} />
+                        <AnimatedCounter value={data.totalIncome - data.totalExpense} prefix={`${getCurrencySymbol(defaultCurrency)} `} decimals={0} />
+                        <span className="summary-card__value-meta"> (<AnimatedCounter value={data.savingsRate} suffix="%" decimals={1} />)</span>
                     </div>
                 </div>
             </div>
@@ -133,7 +138,7 @@ function Dashboard() {
                         </div>
                     </div>
                     {barData.length > 0 ? (
-                        <BarChart data={barData} height={260} />
+                        <BarChart data={barData} height={260} currencySymbol={getCurrencySymbol(defaultCurrency)} />
                     ) : (
                         <div className="card__empty">Add transactions to see trends</div>
                     )}
@@ -149,7 +154,7 @@ function Dashboard() {
                     </div>
                     {donutData.length > 0 ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-                            <DonutChart data={donutData} size={190} />
+                            <DonutChart data={donutData} size={190} currencySymbol={getCurrencySymbol(defaultCurrency)} />
                             <div className="donut-legend">
                                 {donutData.slice(0, 6).map(d => {
                                     const total = donutData.reduce((s, i) => s + i.value, 0)
@@ -216,7 +221,7 @@ function Dashboard() {
                                         </div>
                                     </div>
                                     <div className={`tx-list__amount tx-list__amount--${tx.type}`}>
-                                        {tx.type === 'income' ? '+' : '-'}₹{Number(tx.amount).toLocaleString('en-IN')}
+                                        {tx.type === 'income' ? '+' : '-'}{getCurrencySymbol(defaultCurrency)} {Number(tx.amount).toLocaleString('en-IN')}
                                     </div>
                                 </div>
                             ))}
@@ -239,7 +244,7 @@ function Dashboard() {
                                     <div className="leaderboard__bar-wrap">
                                         <div className="leaderboard__label-row">
                                             <span className="leaderboard__name">{cat.name}</span>
-                                            <span className="leaderboard__amount">₹{Number(cat.total).toLocaleString('en-IN')}</span>
+                                            <span className="leaderboard__amount">{getCurrencySymbol(defaultCurrency)} {Number(cat.total).toLocaleString('en-IN')}</span>
                                         </div>
                                         <div className="leaderboard__bar">
                                             <div
@@ -272,13 +277,13 @@ function Dashboard() {
                         {accountBalances.filter(a => ['cash', 'bank', 'saving'].includes(a.type)).map(a => (
                             <div key={a.id} style={{ padding: '12px 16px', background: 'var(--color-surface-elevated)', borderRadius: 10, minWidth: 140 }}>
                                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>{a.name}</div>
-                                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 16 }}>₹{Number(a.balance).toLocaleString('en-IN')}</div>
+                                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 16 }}>{getCurrencySymbol(defaultCurrency)} {Number(a.balance).toLocaleString('en-IN')}</div>
                             </div>
                         ))}
                         <div style={{ padding: '12px 16px', background: 'var(--color-bg-tertiary)', borderRadius: 10, minWidth: 140, border: '1px dashed var(--color-border)' }}>
                             <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>Total</div>
                             <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 16 }}>
-                                ₹{Number(accountBalances.filter(a => ['cash', 'bank', 'saving'].includes(a.type)).reduce((s, a) => s + a.balance, 0)).toLocaleString('en-IN')}
+                                {getCurrencySymbol(defaultCurrency)} {Number(accountBalances.filter(a => ['cash', 'bank', 'saving'].includes(a.type)).reduce((s, a) => s + a.balance, 0)).toLocaleString('en-IN')}
                             </div>
                         </div>
                     </div>
@@ -299,12 +304,12 @@ function Dashboard() {
                                 {balanceSheet.assets.map(a => (
                                     <div key={a.id} className="balance-sheet__row">
                                         <span className="balance-sheet__row-label">{a.name}</span>
-                                        <span className="balance-sheet__row-value text-income">₹{Number(a.balance).toLocaleString('en-IN')}</span>
+                                        <span className="balance-sheet__row-value text-income">{getCurrencySymbol(defaultCurrency)} {Number(a.balance).toLocaleString('en-IN')}</span>
                                     </div>
                                 ))}
                                 <div className="balance-sheet__row" style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, marginTop: 4, fontWeight: 700 }}>
                                     <span>Total Assets</span>
-                                    <span className="balance-sheet__row-value text-income" style={{ fontSize: 15 }}>₹{Number(balanceSheet.totalAssets).toLocaleString('en-IN')}</span>
+                                    <span className="balance-sheet__row-value text-income" style={{ fontSize: 15 }}>{getCurrencySymbol(defaultCurrency)} {Number(balanceSheet.totalAssets).toLocaleString('en-IN')}</span>
                                 </div>
                             </div>
                             <div className="balance-sheet__column balance-sheet__column--expense">
@@ -312,12 +317,12 @@ function Dashboard() {
                                 {balanceSheet.liabilities.map(a => (
                                     <div key={a.id} className="balance-sheet__row">
                                         <span className="balance-sheet__row-label">{a.name}</span>
-                                        <span className="balance-sheet__row-value text-expense">₹{Number(a.balance).toLocaleString('en-IN')}</span>
+                                        <span className="balance-sheet__row-value text-expense">{getCurrencySymbol(defaultCurrency)} {Number(a.balance).toLocaleString('en-IN')}</span>
                                     </div>
                                 ))}
                                 <div className="balance-sheet__row" style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, marginTop: 4, fontWeight: 700 }}>
                                     <span>Total Liabilities</span>
-                                    <span className="balance-sheet__row-value text-expense" style={{ fontSize: 15 }}>₹{Number(balanceSheet.totalLiabilities).toLocaleString('en-IN')}</span>
+                                    <span className="balance-sheet__row-value text-expense" style={{ fontSize: 15 }}>{getCurrencySymbol(defaultCurrency)} {Number(balanceSheet.totalLiabilities).toLocaleString('en-IN')}</span>
                                 </div>
                             </div>
                         </>
@@ -333,12 +338,12 @@ function Dashboard() {
                                                     <span className="balance-sheet__row-dot" style={{ background: item.color }} />
                                                     {item.name}
                                                 </span>
-                                                <span className="balance-sheet__row-value text-income">₹{Number(item.total).toLocaleString('en-IN')}</span>
+                                                <span className="balance-sheet__row-value text-income">{getCurrencySymbol(defaultCurrency)} {Number(item.total).toLocaleString('en-IN')}</span>
                                             </div>
                                         ))}
                                         <div className="balance-sheet__row" style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, marginTop: 4, fontWeight: 700 }}>
                                             <span>Total Assets</span>
-                                            <span className="balance-sheet__row-value text-income" style={{ fontSize: 15 }}>₹{Number(data.totalIncome).toLocaleString('en-IN')}</span>
+                                            <span className="balance-sheet__row-value text-income" style={{ fontSize: 15 }}>{getCurrencySymbol(defaultCurrency)} {Number(data.totalIncome).toLocaleString('en-IN')}</span>
                                         </div>
                                     </>
                                 ) : (
@@ -355,12 +360,12 @@ function Dashboard() {
                                                     <span className="balance-sheet__row-dot" style={{ background: item.color }} />
                                                     {item.name}
                                                 </span>
-                                                <span className="balance-sheet__row-value text-expense">₹{Number(item.total).toLocaleString('en-IN')}</span>
+                                                <span className="balance-sheet__row-value text-expense">{getCurrencySymbol(defaultCurrency)} {Number(item.total).toLocaleString('en-IN')}</span>
                                             </div>
                                         ))}
                                         <div className="balance-sheet__row" style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, marginTop: 4, fontWeight: 700 }}>
                                             <span>Total Liabilities</span>
-                                            <span className="balance-sheet__row-value text-expense" style={{ fontSize: 15 }}>₹{Number(data.totalExpense).toLocaleString('en-IN')}</span>
+                                            <span className="balance-sheet__row-value text-expense" style={{ fontSize: 15 }}>{getCurrencySymbol(defaultCurrency)} {Number(data.totalExpense).toLocaleString('en-IN')}</span>
                                         </div>
                                     </>
                                 ) : (
@@ -373,7 +378,7 @@ function Dashboard() {
                 <div className="balance-sheet__footer">
                     <span className="balance-sheet__footer-label">Net Worth</span>
                     <span className={`balance-sheet__footer-value ${data.netBalance >= 0 ? 'balance-sheet__footer-value--positive' : 'balance-sheet__footer-value--negative'}`}>
-                        ₹{Number(data.netBalance).toLocaleString('en-IN')}
+                        {getCurrencySymbol(defaultCurrency)} {Number(data.netBalance).toLocaleString('en-IN')}
                     </span>
                 </div>
             </div>

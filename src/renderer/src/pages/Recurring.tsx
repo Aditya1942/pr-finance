@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Plus, X, Edit3, Trash2, Repeat, Pause, Play } from 'lucide-react'
+import { getCurrencySymbol } from '../constants/currencies'
 import type { RecurringTemplate, Category } from '../types'
 
 const FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const
 
 function Recurring() {
+    const [defaultCurrency, setDefaultCurrency] = useState('USD')
     const [templates, setTemplates] = useState<RecurringTemplate[]>([])
     const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
@@ -26,12 +28,14 @@ function Recurring() {
     async function load() {
         setLoading(true)
         try {
-            const [tpls, cats] = await Promise.all([
+            const [tpls, cats, currency] = await Promise.all([
                 window.api.getRecurringTemplates(),
                 window.api.getCategories(),
+                window.api.getDefaultCurrency().then(c => c || 'USD'),
             ])
             setTemplates(tpls)
             setCategories(cats)
+            setDefaultCurrency(currency)
         } catch (err) {
             console.error(err)
         } finally {
@@ -145,7 +149,7 @@ function Recurring() {
                             <li key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--color-border)' }}>
                                 <span style={{ fontWeight: 600 }}>{t.description || t.category_name}</span>
                                 <span style={{ fontFamily: 'var(--font-mono)', color: t.type === 'income' ? 'var(--color-accent-green)' : 'var(--color-accent-red)' }}>
-                                    {t.type === 'income' ? '+' : '-'}₹{Number(t.amount).toLocaleString('en-IN')}
+                                    {t.type === 'income' ? '+' : '-'}{getCurrencySymbol(defaultCurrency)}{Number(t.amount).toLocaleString('en-IN')}
                                 </span>
                                 <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{t.next_run}</span>
                             </li>
@@ -182,7 +186,7 @@ function Recurring() {
                                     <td style={{ textTransform: 'capitalize' }}>{t.frequency}</td>
                                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{t.next_run}</td>
                                     <td style={{ textAlign: 'right', fontWeight: 600 }} className={t.type === 'income' ? 'text-income' : 'text-expense'}>
-                                        {t.type === 'income' ? '+' : '-'}₹{Number(t.amount).toLocaleString('en-IN')}
+                                        {t.type === 'income' ? '+' : '-'}{getCurrencySymbol(defaultCurrency)}{Number(t.amount).toLocaleString('en-IN')}
                                     </td>
                                     <td>
                                         <div style={{ display: 'flex', gap: 4 }}>
@@ -230,7 +234,7 @@ function Recurring() {
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Amount (₹)</label>
+                                    <label className="form-label">Amount ({getCurrencySymbol(defaultCurrency)})</label>
                                     <input type="number" className="form-input" value={formAmount} onChange={e => setFormAmount(e.target.value)} min="0" step="0.01" />
                                 </div>
                                 <div className="form-group">

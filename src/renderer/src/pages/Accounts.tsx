@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Plus, Wallet, Building2, PiggyBank, TrendingUp, CreditCard, Users, ArrowLeftRight, X, Edit3, Trash2 } from 'lucide-react'
+import { getCurrencySymbol } from '../constants/currencies'
 import type { Account, AccountBalance } from '../types'
 
 const ACCOUNT_TYPES = [
@@ -14,6 +15,7 @@ const ACCOUNT_TYPES = [
 ] as const
 
 function Accounts() {
+    const [defaultCurrency, setDefaultCurrency] = useState('USD')
     const [balances, setBalances] = useState<AccountBalance[]>([])
     const [loading, setLoading] = useState(true)
     const [modalOpen, setModalOpen] = useState(false)
@@ -23,6 +25,15 @@ function Accounts() {
     const [formInitial, setFormInitial] = useState('0')
     const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
 
+    const [transferOpen, setTransferOpen] = useState(false)
+    const [transferFrom, setTransferFrom] = useState<number | ''>('')
+    const [transferTo, setTransferTo] = useState<number | ''>('')
+    const [transferAmount, setTransferAmount] = useState('')
+    const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10))
+    const [transferMemo, setTransferMemo] = useState('')
+    const [transferSubmitting, setTransferSubmitting] = useState(false)
+    const [transferError, setTransferError] = useState<string | null>(null)
+
     useEffect(() => {
         load()
     }, [])
@@ -30,8 +41,12 @@ function Accounts() {
     async function load() {
         setLoading(true)
         try {
-            const data = await window.api.getAccountBalances()
+            const [data, currency] = await Promise.all([
+                window.api.getAccountBalances(),
+                window.api.getDefaultCurrency().then(c => c || 'USD'),
+            ])
             setBalances(data)
+            setDefaultCurrency(currency)
         } catch (err) {
             console.error(err)
         } finally {
@@ -81,6 +96,47 @@ function Accounts() {
         }
     }
 
+    function openTransfer() {
+        setTransferFrom('')
+        setTransferTo('')
+        setTransferAmount('')
+        setTransferDate(new Date().toISOString().slice(0, 10))
+        setTransferMemo('')
+        setTransferError(null)
+        setTransferOpen(true)
+    }
+
+    async function handleTransfer() {
+        const fromId = typeof transferFrom === 'number' ? transferFrom : null
+        const toId = typeof transferTo === 'number' ? transferTo : null
+        const amount = parseFloat(transferAmount)
+        if (fromId == null || toId == null || !Number.isFinite(amount) || amount <= 0) {
+            setTransferError('Select both accounts and enter a valid amount.')
+            return
+        }
+        if (fromId === toId) {
+            setTransferError('Source and destination must be different.')
+            return
+        }
+        setTransferSubmitting(true)
+        setTransferError(null)
+        try {
+            await window.api.transfer({
+                from_account_id: fromId,
+                to_account_id: toId,
+                amount,
+                date: transferDate,
+                memo: transferMemo.trim() || undefined,
+            })
+            setTransferOpen(false)
+            load()
+        } catch (err) {
+            setTransferError(err instanceof Error ? err.message : 'Transfer failed')
+        } finally {
+            setTransferSubmitting(false)
+        }
+    }
+
     const totalBalance = balances.reduce((s, a) => s + a.balance, 0)
     const assetTypes = ['cash', 'bank', 'saving', 'investment', 'account_receivable']
     const bankAndCash = balances.filter(a => ['cash', 'bank', 'saving'].includes(a.type))
@@ -97,10 +153,21 @@ function Accounts() {
         <div className="page">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Accounts</h2>
-                <button className="btn btn--primary" onClick={openAdd}>
-                    <Plus size={16} />
-                    Add Account
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                        className="btn btn--secondary"
+                        onClick={openTransfer}
+                        disabled={balances.length < 2}
+                        title={balances.length < 2 ? 'Add at least two accounts to transfer' : 'Transfer between accounts'}
+                    >
+                        <ArrowLeftRight size={16} />
+                        Transfer
+                    </button>
+                    <button className="btn btn--primary" onClick={openAdd}>
+                        <Plus size={16} />
+                        Add Account
+                    </button>
+                </div>
             </div>
 
             {/* Bank & cash snapshot (Legacy) */}
@@ -119,14 +186,14 @@ function Accounts() {
                                 <tr key={a.id}>
                                     <td style={{ fontWeight: 600 }}>{a.name}</td>
                                     <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                                        ₹{Number(a.balance).toLocaleString('en-IN')}
+                                        {getCurrencySymbol(defaultCurrency)}{Number(a.balance).toLocaleString('en-IN')}
                                     </td>
                                 </tr>
                             ))}
                             <tr style={{ borderTop: '2px solid var(--color-border)', fontWeight: 700 }}>
                                 <td>Total</td>
                                 <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                                    ₹{Number(bankAndCash.reduce((s, a) => s + a.balance, 0)).toLocaleString('en-IN')}
+                                    {getCurrencySymbol(defaultCurrency)}{Number(bankAndCash.reduce((s, a) => s + a.balance, 0)).toLocaleString('en-IN')}
                                 </td>
                             </tr>
                         </tbody>
@@ -170,7 +237,7 @@ function Accounts() {
                                             </span>
                                         </td>
                                         <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                                            ₹{Number(acc.balance).toLocaleString('en-IN')}
+                                            {getCurrencySymbol(defaultCurrency)}{Number(acc.balance).toLocaleString('en-IN')}
                                         </td>
                                         <td>
                                             <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
@@ -211,13 +278,92 @@ function Accounts() {
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Initial balance (₹)</label>
+                                <label className="form-label">Initial balance ({getCurrencySymbol(defaultCurrency)})</label>
                                 <input type="number" className="form-input" value={formInitial} onChange={e => setFormInitial(e.target.value)} step="0.01" />
                             </div>
                         </div>
                         <div className="modal__footer">
                             <button className="btn btn--ghost" onClick={() => setModalOpen(false)}>Cancel</button>
                             <button className="btn btn--primary" onClick={handleSave}>Save</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {transferOpen && (
+                <div className="modal-overlay" onClick={() => !transferSubmitting && setTransferOpen(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal__header">
+                            <h2 className="modal__title">Transfer between accounts</h2>
+                            <button className="modal__close" onClick={() => !transferSubmitting && setTransferOpen(false)} disabled={transferSubmitting}><X size={18} /></button>
+                        </div>
+                        <div className="modal__body">
+                            {transferError && (
+                                <p style={{ color: 'var(--color-danger, #ef4444)', marginBottom: 12, fontSize: 14 }}>{transferError}</p>
+                            )}
+                            <div className="form-group">
+                                <label className="form-label">From</label>
+                                <select
+                                    className="form-select"
+                                    value={transferFrom === '' ? '' : String(transferFrom)}
+                                    onChange={e => setTransferFrom(e.target.value === '' ? '' : Number(e.target.value))}
+                                >
+                                    <option value="">Select account</option>
+                                    {balances.map(a => (
+                                        <option key={a.id} value={a.id}>{a.name} ({getCurrencySymbol(defaultCurrency)}{Number(a.balance).toLocaleString('en-IN')})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">To</label>
+                                <select
+                                    className="form-select"
+                                    value={transferTo === '' ? '' : String(transferTo)}
+                                    onChange={e => setTransferTo(e.target.value === '' ? '' : Number(e.target.value))}
+                                >
+                                    <option value="">Select account</option>
+                                    {balances.map(a => (
+                                        <option key={a.id} value={a.id}>{a.name} ({getCurrencySymbol(defaultCurrency)}{Number(a.balance).toLocaleString('en-IN')})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Amount ({getCurrencySymbol(defaultCurrency)})</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    value={transferAmount}
+                                    onChange={e => setTransferAmount(e.target.value)}
+                                    step="0.01"
+                                    min="0.01"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Date</label>
+                                <input
+                                    type="date"
+                                    className="form-input"
+                                    value={transferDate}
+                                    onChange={e => setTransferDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Memo (optional)</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={transferMemo}
+                                    onChange={e => setTransferMemo(e.target.value)}
+                                    placeholder="e.g. Monthly savings transfer"
+                                />
+                            </div>
+                        </div>
+                        <div className="modal__footer">
+                            <button className="btn btn--ghost" onClick={() => setTransferOpen(false)} disabled={transferSubmitting}>Cancel</button>
+                            <button className="btn btn--primary" onClick={handleTransfer} disabled={transferSubmitting}>
+                                {transferSubmitting ? 'Transferring…' : 'Transfer'}
+                            </button>
                         </div>
                     </div>
                 </div>
